@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>萌芽单词乐园 - 游戏化学习</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'sunflower-yellow': '#FFD700',
+            'sunflower-light': '#FFE44D',
+            'grass-green': '#7CB342',
+            'grass-dark': '#558B2F',
+            'sky-blue': '#87CEEB',
+            'sky-light': '#B0E0E6',
+            'wood-brown': '#8B4513',
+            'wood-light': '#A0522D',
+            'tulip-pink': '#FFB6C1',
+            'cream-white': '#FFFDD0',
+            'lavender': '#E6E6FA',
+          },
+          animation: {
+            'float': 'float 3s ease-in-out infinite',
+            'float-slow': 'float 4s ease-in-out infinite',
+            'bounce-slow': 'bounce 2s ease-in-out infinite',
+            'pulse-slow': 'pulse 3s ease-in-out infinite',
+            'spin-slow': 'spin 8s linear infinite',
+            'wiggle': 'wiggle 1s ease-in-out infinite',
+            'grow': 'grow 2s ease-out',
+            'fade-in': 'fadeIn 0.5s ease-out',
+            'slide-up': 'slideUp 0.6s ease-out',
+            'dice-roll': 'diceRoll 0.6s ease-out',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            wiggle: {
+              '0%, 100%': { transform: 'rotate(-3deg)' },
+              '50%': { transform: 'rotate(3deg)' },
+            },
+            grow: {
+              '0%': { transform: 'scale(0.5)', opacity: '0.5' },
+              '100%': { transform: 'scale(1)', opacity: '1' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(20px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
+            },
+            diceRoll: {
+              '0%': { transform: 'rotate(0deg) scale(1)' },
+              '50%': { transform: 'rotate(180deg) scale(1.1)' },
+              '100%': { transform: 'rotate(360deg) scale(1)' },
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body { font-family: 'Segoe UI', sans-serif; }
+    .page { display: none; width: 100%; height: 100%; overflow-y: auto; }
+    .page.active { display: block; animation: fadeIn 0.5s ease-out; }
+
+    .wood-sign {
+      background: linear-gradient(145deg, #8B4513 0%, #654321 50%, #4A2C14 100%);
+      border-radius: 12px;
+      box-shadow: 
+        0 10px 30px rgba(0,0,0,0.4),
+        inset 0 2px 4px rgba(255,255,255,0.1),
+        0 0 0 4px #654321,
+        0 0 0 6px #8B4513;
+      position: relative;
+    }
+    .wood-sign::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 30px,
+        rgba(0,0,0,0.1) 30px,
+        rgba(0,0,0,0.1) 32px
+      );
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    .pixel-font {
+      font-family: 'Courier New', monospace;
+      text-shadow: 2px 2px 0px rgba(0,0,0,0.3);
+      letter-spacing: 1px;
+    }
+    .pixel-card {
+      border: 4px solid #000;
+      background: #fff;
+      box-shadow: 6px 6px 0px rgba(0,0,0,0.3);
+      image-rendering: pixelated;
+    }
+
+    .low-poly {
+      clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 85% 100%, 0% 100%);
+    }
+    .low-poly-house {
+      background: linear-gradient(135deg, #DEB887 0%, #D2691E 100%);
+      clip-path: polygon(50% 0%, 100% 38%, 100% 100%, 0% 100%, 0% 38%);
+    }
+
+    .vine-decoration {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .vine-decoration::before,
+    .vine-decoration::after {
+      content: '🌿';
+      position: absolute;
+      font-size: 2rem;
+      animation: float 3s ease-in-out infinite;
+    }
+    .vine-decoration::before { top: -10px; left: 10px; }
+    .vine-decoration::after { top: -10px; right: 10px; animation-delay: 1.5s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .animate-float {
+      animation: float 3s ease-in-out infinite;
+    }
+    .animate-float-slow {
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .sunflower-decoration {
+      position: absolute;
+      font-size: 3rem;
+      animation: wiggle 2s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .watercolor-bg {
+      background: 
+        radial-gradient(ellipse at 20% 30%, rgba(124, 179, 66, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(135, 206, 235, 0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.3) 0%, transparent 60%),
+        linear-gradient(180deg, #87CEEB 0%, #B0E0E6 30%, #E8F5E9 50%, #C8E6C9 70%, #81C784 100%);
+    }
+
+    .custom-bg {
+      background-image: url('生成背景图.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .custom-bg-blend {
+      background-image: url('生成背景图.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-blend-mode: overlay;
+    }
+
+    .game-bg {
+      background-image: url('生成背景图.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .parchment {
+      background: linear-gradient(135deg, #F5DEB3 0%, #DEB887 50%, #D2B48C 100%);
+      border: 2px solid #8B4513;
+      box-shadow: inset 0 0 20px rgba(139, 69, 19, 0.2);
+    }
+
+    .game-button {
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .game-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .game-button::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      background: rgba(255,255,255,0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    .game-button:hover::after {
+      width: 300px; height: 300px;
+    }
+
+    .loading-bar {
+      background: linear-gradient(90deg, #E6E6FA 0%, #FFB6C1 50%, #E6E6FA 100%);
+      background-size: 200% 100%;
+      animation: loadingGradient 2s linear infinite;
+    }
+    @keyframes loadingGradient {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .cloud {
+      animation: floatCloud 20s linear infinite;
+    }
+    @keyframes floatCloud {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100vw); }
+    }
+
+    .grass-wave {
+      background: linear-gradient(180deg, #7CB342 0%, #558B2F 100%);
+      clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 95% 100%, 90% 85%, 85% 100%, 80% 85%, 75% 100%, 70% 85%, 65% 100%, 60% 85%, 55% 100%, 50% 85%, 45% 100%, 40% 85%, 35% 100%, 30% 85%, 25% 100%, 20% 85%, 15% 100%, 10% 85%, 5% 100%, 0% 85%);
+    }
+
+    .gender-selector.selected {
+      border-color: #FFD700 !important;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.3);
+      transform: scale(1.1);
+    }
+    .gender-selector.selected::after {
+      content: '✓';
+      position: absolute;
+      bottom: -4px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      background: #FFD700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #8B4513;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .bg-boy {
+      background-image: url('男生.png') !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+    }
+
+    .bg-girl {
+      background-image: url('女生.png') !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+    }
+
+    .room-bg {
+      background: linear-gradient(180deg, #E0F7FA 0%, #B2EBF2 50%, #80DEEA 100%);
+    }
+
+    .room-bg.level-1 {
+      background: linear-gradient(180deg, #E3F2FD 0%, #BBDEFB 50%, #90CAF9 100%);
+    }
+
+    .room-bg.level-2 {
+      background: linear-gradient(180deg, #FFF8E1 0%, #FFECB3 50%, #FFE082 100%);
+    }
+
+    .room-bg.level-3 {
+      background: linear-gradient(180deg, #F3E5F5 0%, #E1BEE7 50%, #CE93D8 100%);
+    }
+
+    .room-bg.level-4 {
+      background: linear-gradient(180deg, #E8F5E9 0%, #C8E6C9 50%, #A5D6A7 100%);
+    }
+
+    .room-bg.level-5 {
+      background: linear-gradient(180deg, #FFF3E0 0%, #FFE0B2 50%, #FFCC80 100%);
+    }
+  </style>
+</head>
+<body class="bg-sky-blue">
+
+  <div id="login-page" class="page active">
+    <div class="relative w-full h-full overflow-hidden">
+      <div class="absolute inset-0 custom-bg"></div>
+      <div class="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-transparent to-green-900/20"></div>
+      <div class="cloud absolute top-10 left-0 text-6xl opacity-80">☁️</div>
+      <div class="cloud absolute top-20 left-1/4 text-4xl opacity-60" style="animation-delay: -5s;">☁️</div>
+      <div class="cloud absolute top-16 left-1/2 text-5xl opacity-70" style="animation-delay: -10s;">☁️</div>
+      
+      <div class="sunflower-decoration bottom-20 left-10" style="animation-delay: 0s;">🌻</div>
+      <div class="sunflower-decoration bottom-32 right-16" style="animation-delay: 0.5s;">🌻</div>
+      <div class="sunflower-decoration bottom-16 left-1/3" style="animation-delay: 1s;">🌻</div>
+      <div class="sunflower-decoration bottom-40 right-1/3" style="animation-delay: 1.5s;">🌻</div>
+      
+      <div class="absolute bottom-24 left-20 text-3xl animate-float" style="animation-delay: 0.3s;">🌷</div>
+      <div class="absolute bottom-28 right-24 text-3xl animate-float" style="animation-delay: 0.8s;">🌷</div>
+      
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="wood-sign p-8 max-w-md mx-4 text-center relative z-10">
+          <div class="vine-decoration"></div>
+          <div class="absolute -top-6 left-4 text-4xl animate-float">🪣</div>
+          <div class="absolute -top-6 right-4 text-4xl animate-float" style="animation-delay: 1s;">🪚</div>
+          
+          <h1 class="text-4xl font-bold text-white mb-2 drop-shadow-lg" style="text-shadow: 3px 3px 0px #654321, 5px 5px 10px rgba(0,0,0,0.5);">
+            🌱 萌芽单词乐园 🌱
+          </h1>
+          <p class="text-cream-white text-lg mb-6" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+            在花园中轻松学英语
+          </p>
+          
+          <div class="mb-6">
+            <p class="text-cream-white text-sm mb-3" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">选择你的角色：</p>
+            <div class="flex justify-center gap-6">
+              <button id="gender-boy" class="gender-selector w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex flex-col items-center justify-center shadow-lg hover:scale-110 transition-all border-4 border-transparent" onclick="selectGender('boy')">
+                <span class="text-3xl">👦</span>
+                <span class="text-xs text-white mt-1">男生</span>
+              </button>
+              <button id="gender-girl" class="gender-selector w-20 h-20 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex flex-col items-center justify-center shadow-lg hover:scale-110 transition-all border-4 border-transparent selected" onclick="selectGender('girl')">
+                <span class="text-3xl">👧</span>
+                <span class="text-xs text-white mt-1">女生</span>
+              </button>
+            </div>
+          </div>
+          
+          <button id="start-btn" class="game-button bg-gradient-to-r from-sunflower-yellow to-sunflower-light text-wood-brown font-bold py-4 px-8 rounded-full text-xl shadow-lg mb-6">
+            🌱 开始冒险 🌱
+          </button>
+          
+          <div class="relative">
+            <div class="h-4 bg-wood-brown/30 rounded-full overflow-hidden border-2 border-wood-brown/50">
+              <div id="loading-progress" class="loading-bar h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between mt-2 text-sm text-cream-white">
+              <span id="loading-text">正在准备花园...</span>
+              <span id="loading-percent">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <button class="absolute top-4 left-4 w-12 h-12 bg-white/80 rounded-xl flex items-center justify-center text-2xl shadow-lg hover:scale-110 transition-transform">
+        ⚙️
+      </button>
+      <button class="absolute top-4 right-4 w-12 h-12 bg-white/80 rounded-xl flex items-center justify-center text-2xl shadow-lg hover:scale-110 transition-transform">
+        📬
+      </button>
+    </div>
+  </div>
+
+  <div id="home-page" class="page">
+    <div class="relative w-full h-full custom-bg overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-t from-green-900/20 via-transparent to-blue-900/10"></div>
+      
+      <div class="absolute bottom-1/4 right-16 text-7xl animate-float-slow">🏠</div>
+      <div class="absolute bottom-1/3 left-1/4 text-5xl opacity-80">🌉</div>
+      <div class="absolute bottom-1/3 left-1/2 text-4xl animate-bounce-slow">🐱</div>
+      <div class="absolute bottom-1/4 right-1/3 text-3xl animate-float">🦋</div>
+      <div class="absolute top-1/3 left-20 text-3xl animate-float" style="animation-delay: 1s;">🌿</div>
+      <div class="absolute top-1/4 right-20 text-2xl animate-float" style="animation-delay: 0.5s;">🌿</div>
+      <div class="absolute top-1/2 right-16 text-2xl animate-float" style="animation-delay: 1.5s;">🌿</div>
+      
+      <div class="absolute top-0 left-0 right-0 p-4">
+        <div class="parchment rounded-2xl p-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-3">
+              <div id="home-avatar" class="w-12 h-12 bg-gradient-to-br from-sunflower-yellow to-orange-400 rounded-full flex items-center justify-center text-2xl shadow-lg">
+                👧
+              </div>
+              <div>
+                <p class="font-bold text-wood-brown" id="home-username">小花</p>
+                <p class="text-sm text-wood-light">Lv.5</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-yellow-100 px-4 py-2 rounded-full">
+              <span class="text-2xl">💰</span>
+              <span class="font-bold text-yellow-700" id="home-coins">150</span>
+            </div>
+            
+            <div class="flex items-center gap-2 text-gray-700">
+              <span class="text-xl">☀️</span>
+              <span class="text-sm">晴天 25°C</span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span class="text-xl">❤️</span>
+              <div class="w-20 h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full" style="width: 80%"></div>
+              </div>
+            </div>
+            
+            <button id="gender-toggle" class="px-3 py-2 bg-gradient-to-r from-blue-400 to-pink-400 rounded-full flex items-center gap-2 hover:scale-110 transition-transform shadow-lg">
+              <span class="text-xl" id="gender-icon">👧</span>
+              <span class="text-xs font-bold text-white">切换性别</span>
+            </button>
+            
+            <div class="flex items-center gap-4">
+              <button class="p-2 rounded-lg hover:bg-white/50 transition-colors">
+                <span class="text-xl">📧</span>
+              </button>
+              <button class="p-2 rounded-lg hover:bg-white/50 transition-colors">
+                <span class="text-xl">🏆</span>
+              </button>
+              <button class="p-2 rounded-lg hover:bg-white/50 transition-colors">
+                <span class="text-xl">📖</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="absolute top-4 right-24 flex items-center gap-2 bg-white/90 rounded-full px-4 py-2 shadow-lg">
+          <input type="text" id="word-search-input" placeholder="搜索单词..." class="border-none outline-none bg-transparent text-wood-brown placeholder-gray-400 w-32">
+          <div class="flex items-center gap-1">
+            <button onclick="searchWord('youdao')" class="p-1.5 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors" title="网易有道词典">
+              <span class="text-xs">📚</span>
+            </button>
+            <button onclick="searchWord('baidu')" class="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors" title="百度词典">
+              <span class="text-xs">🔍</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="absolute left-20 top-1/2 transform -translate-y-1/2 flex flex-col gap-4">
+        <button id="game-btn" class="game-button wood-sign px-8 py-5 text-center min-w-[180px] flex items-center gap-3">
+          <div class="vine-decoration"></div>
+          <div class="relative z-10 flex items-center gap-3">
+            <span class="text-3xl">🎮</span>
+            <div class="text-left">
+              <h2 class="text-xl font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">开始游戏</h2>
+              <p class="text-cream-white text-xs">挑战英语小游戏</p>
+            </div>
+          </div>
+        </button>
+        
+        <button id="garden-btn" class="game-button wood-sign px-8 py-5 text-center min-w-[180px] flex items-center gap-3">
+          <div class="vine-decoration"></div>
+          <div class="relative z-10 flex items-center gap-3">
+            <span class="text-3xl">🏡</span>
+            <div class="text-left">
+              <h2 class="text-xl font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">我的家园</h2>
+              <p class="text-cream-white text-xs">装扮你的花园</p>
+            </div>
+          </div>
+        </button>
+        
+        <button id="home-shop-btn" class="game-button wood-sign px-8 py-4 text-center min-w-[180px] flex items-center gap-3">
+          <div class="relative z-10 flex items-center gap-3">
+            <span class="text-2xl">🏪</span>
+            <span class="text-lg font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">家园商城</span>
+          </div>
+        </button>
+        
+        <button id="inventory-btn" class="game-button wood-sign px-8 py-4 text-center min-w-[180px] flex items-center gap-3">
+          <div class="relative z-10 flex items-center gap-3">
+            <span class="text-2xl">🎒</span>
+            <span class="text-lg font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">背包</span>
+          </div>
+        </button>
+        
+        <button class="game-button wood-sign px-8 py-4 text-center min-w-[180px] flex items-center gap-3" onclick="showSettings()">
+          <div class="relative z-10 flex items-center gap-3">
+            <span class="text-2xl">⚙️</span>
+            <span class="text-lg font-bold text-white" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">设置</span>
+          </div>
+        </button>
+      </div>
+      
+      <div class="absolute bottom-4 right-4 parchment rounded-xl p-4 max-w-xs shadow-xl" style="max-height: 220px; display: flex; flex-direction: column;">
+        <h3 class="font-bold text-wood-brown mb-2 flex items-center justify-center gap-2 flex-shrink-0">
+          <span>📋</span> <span>每日任务</span>
+        </h3>
+        <div class="space-y-2 text-sm overflow-y-auto flex-1" id="daily-tasks-container">
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="spell-3" onclick="handleTaskClick('spell-3')">
+            <div class="flex-1">
+              <span class="font-medium">✏️ 完成3个单词拼写</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/3</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+20</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="monopoly-5" onclick="handleTaskClick('monopoly-5')">
+            <div class="flex-1">
+              <span class="font-medium">🎲 大富翁前进5步</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/5</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+15</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="garden-plant-2" onclick="handleTaskClick('garden-plant-2')">
+            <div class="flex-1">
+              <span class="font-medium">🌱 家园种植2朵花</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/2</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+30</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="listen-5" onclick="handleTaskClick('listen-5')">
+            <div class="flex-1">
+              <span class="font-medium">🎧 听音辨词5题</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/5</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+25</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="picture-5" onclick="handleTaskClick('picture-5')">
+            <div class="flex-1">
+              <span class="font-medium">🖼️ 看图选词5题</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/5</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+25</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="spell-5" onclick="handleTaskClick('spell-5')">
+            <div class="flex-1">
+              <span class="font-medium">✏️ 完成5个单词拼写</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/5</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+35</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="garden-decorate-1" onclick="handleTaskClick('garden-decorate-1')">
+            <div class="flex-1">
+              <span class="font-medium">🏠 装饰家园1次</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/1</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+10</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+          <div class="daily-task flex items-center justify-between bg-white/50 p-2 rounded-lg cursor-pointer hover:bg-white/70 transition-colors" data-task-id="monopoly-win-1" onclick="handleTaskClick('monopoly-win-1')">
+            <div class="flex-1">
+              <span class="font-medium">🏆 大富翁胜利1次</span>
+              <div class="w-full h-1.5 bg-gray-300 rounded-full mt-1">
+                <div class="h-full bg-blue-500 rounded-full task-progress" style="width: 0%"></div>
+              </div>
+              <span class="text-xs text-gray-500 task-progress-text">0/1</span>
+            </div>
+            <div class="ml-2 flex flex-col items-end">
+              <span class="text-green-600 font-bold">💰+50</span>
+              <span class="text-xs text-gray-400 task-status">未完成</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-select-page" class="page">
+    <div class="relative w-full h-full game-bg overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-transparent to-green-900/30"></div>
+      <div class="absolute top-10 left-10 text-5xl opacity-80">☁️</div>
+      <div class="absolute top-20 right-20 text-4xl opacity-60">☁️</div>
+      
+      <button id="back-to-home" class="absolute top-4 left-4 pixel-card px-4 py-2 pixel-font font-bold bg-white hover:bg-yellow-100 transition-colors z-50">
+        ← 返回
+      </button>
+      
+      <div class="absolute top-8 left-1/2 transform -translate-x-1/2 text-center">
+        <h1 class="text-4xl font-bold pixel-font text-white" style="text-shadow: 4px 4px 0px #000;">
+          🎮 选择游戏模式 🎮
+        </h1>
+      </div>
+      
+      <div class="absolute inset-0 flex items-center justify-center pt-16">
+        <div class="grid grid-cols-2 gap-6 max-w-2xl px-4">
+          <div class="pixel-card p-6 text-center cursor-pointer hover:scale-105 transition-transform" onclick="startGame('monopoly')">
+            <div class="text-6xl mb-4">🎲</div>
+            <h3 class="pixel-font font-bold text-xl mb-2">大富翁</h3>
+            <p class="text-sm text-gray-600 mb-3">掷骰子答题前进</p>
+            <div class="flex items-center justify-center gap-2">
+              <span class="text-red-500">❤️❤️❤️</span>
+              <span class="text-yellow-500">⭐⭐⭐⭐</span>
+            </div>
+          </div>
+          
+          <div class="pixel-card p-6 text-center cursor-pointer hover:scale-105 transition-transform" onclick="startGame('spell')">
+            <div class="text-6xl mb-4">✏️</div>
+            <h3 class="pixel-font font-bold text-xl mb-2">单词拼写</h3>
+            <p class="text-sm text-gray-600 mb-3">拼写英语单词</p>
+            <div class="flex items-center justify-center gap-2">
+              <span class="text-red-500">❤️❤️❤️</span>
+              <span class="text-yellow-500">⭐⭐⭐</span>
+            </div>
+          </div>
+          
+          <div class="pixel-card p-6 text-center cursor-pointer hover:scale-105 transition-transform" onclick="startGame('listen')">
+            <div class="text-6xl mb-4">🎧</div>
+            <h3 class="pixel-font font-bold text-xl mb-2">听音辨词</h3>
+            <p class="text-sm text-gray-600 mb-3">听发音选单词</p>
+            <div class="flex items-center justify-center gap-2">
+              <span class="text-red-500">❤️❤️❤️</span>
+              <span class="text-yellow-500">⭐⭐⭐</span>
+            </div>
+          </div>
+          
+          <div class="pixel-card p-6 text-center cursor-pointer hover:scale-105 transition-transform" onclick="startGame('picture')">
+            <div class="text-6xl mb-4">🖼️</div>
+            <h3 class="pixel-font font-bold text-xl mb-2">看图选词</h3>
+            <p class="text-sm text-gray-600 mb-3">看图片选单词</p>
+            <div class="flex items-center justify-center gap-2">
+              <span class="text-red-500">❤️❤️❤️</span>
+              <span class="text-yellow-500">⭐⭐⭐</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="absolute top-4 right-4 pixel-card px-4 py-2 pixel-font">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">👧</span>
+          <div>
+            <p class="font-bold" id="monopoly-username">小花</p>
+            <p class="text-xs text-gray-600">Lv.5</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="monopoly-page" class="page">
+    <div class="relative w-full h-full game-bg overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-b from-blue-900/20 via-transparent to-green-900/40"></div>
+      <div class="absolute top-0 left-0 right-0 p-4 z-20">
+        <div class="parchment rounded-2xl p-4 max-w-lg mx-auto">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2 bg-yellow-100 px-3 py-2 rounded-xl">
+                <span>⭐</span>
+                <span class="font-bold text-orange-600" id="monopoly-score">0</span>
+              </div>
+              <div class="flex items-center gap-2 bg-yellow-200 px-3 py-2 rounded-xl">
+                <span>💰</span>
+                <span class="font-bold text-yellow-700" id="monopoly-coins">150</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-xl">
+              <span>⏱️</span>
+              <span class="font-bold text-blue-600" id="monopoly-timer">60</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="absolute inset-0 flex items-center justify-center pt-20">
+        <div class="relative w-full max-w-4xl mx-4" style="height: 500px;">
+          <div class="absolute inset-0 bg-gradient-to-br from-green-600 to-green-800 rounded-3xl shadow-2xl overflow-hidden">
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 500">
+              <path d="M 50 80 L 50 160 L 130 160 L 130 240 L 210 240 L 210 160 L 290 160 L 290 80 L 350 80 L 350 320 L 290 320 L 290 400 L 210 400 L 210 320 L 130 320 L 130 400 L 50 400 L 50 80" stroke="rgba(255,255,255,0.2)" stroke-width="3" fill="none" stroke-dasharray="6 3"/><circle cx="50" cy="80" r="8" fill="rgba(255,255,255,0.3)"/>
+            </svg>
+            
+            <div class="absolute inset-4">
+              <div class="absolute top-[6%] left-[8%] w-[16%] h-[14%] bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30 animate-pulse" data-index="0">
+                <span class="text-2xl">🚩🏁</span>
+                <span class="text-xs font-bold">起点/终点</span>
+              </div>
+              <div class="absolute top-[22%] left-[8%] w-[16%] h-[14%] bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="1">
+                <span class="text-2xl">✏️</span>
+                <span class="text-xs font-bold">拼写</span>
+              </div>
+              <div class="absolute top-[22%] left-[28%] w-[16%] h-[14%] bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="2">
+                <span class="text-2xl">📝</span>
+                <span class="text-xs font-bold">奖励</span>
+              </div>
+              <div class="absolute top-[38%] left-[28%] w-[16%] h-[14%] bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="3">
+                <span class="text-2xl">🎧</span>
+                <span class="text-xs font-bold">听力</span>
+              </div>
+              <div class="absolute top-[38%] left-[48%] w-[16%] h-[14%] bg-gradient-to-br from-red-500 to-red-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="4">
+                <span class="text-2xl">⚠️</span>
+                <span class="text-xs font-bold">陷阱</span>
+              </div>
+              <div class="absolute top-[22%] left-[48%] w-[16%] h-[14%] bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="5">
+                <span class="text-2xl">📝</span>
+                <span class="text-xs font-bold">奖励</span>
+              </div>
+              <div class="absolute top-[22%] left-[68%] w-[16%] h-[14%] bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="6">
+                <span class="text-2xl">🎁</span>
+                <span class="text-xs font-bold">宝箱</span>
+              </div>
+              <div class="absolute top-[6%] left-[68%] w-[16%] h-[14%] bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="7">
+                <span class="text-2xl">✏️</span>
+                <span class="text-xs font-bold">拼写</span>
+              </div>
+              <div class="absolute top-[6%] left-[85%] w-[12%] h-[14%] bg-gradient-to-br from-pink-500 to-pink-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="8">
+                <span class="text-2xl">🖼️</span>
+                <span class="text-xs font-bold">看图</span>
+              </div>
+              <div class="absolute top-[54%] left-[85%] w-[12%] h-[14%] bg-gradient-to-br from-red-500 to-red-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="9">
+                <span class="text-2xl">⚠️</span>
+                <span class="text-xs font-bold">陷阱</span>
+              </div>
+              <div class="absolute top-[70%] left-[68%] w-[16%] h-[14%] bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="10">
+                <span class="text-2xl">🎧</span>
+                <span class="text-xs font-bold">听力</span>
+              </div>
+              <div class="absolute top-[86%] left-[68%] w-[16%] h-[14%] bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="11">
+                <span class="text-2xl">🎁</span>
+                <span class="text-xs font-bold">宝箱</span>
+              </div>
+              <div class="absolute top-[86%] left-[48%] w-[16%] h-[14%] bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="12">
+                <span class="text-2xl">📝</span>
+                <span class="text-xs font-bold">奖励</span>
+              </div>
+              <div class="absolute top-[70%] left-[48%] w-[16%] h-[14%] bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="13">
+                <span class="text-2xl">✏️</span>
+                <span class="text-xs font-bold">拼写</span>
+              </div>
+              <div class="absolute top-[70%] left-[28%] w-[16%] h-[14%] bg-gradient-to-br from-pink-500 to-pink-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="14">
+                <span class="text-2xl">🖼️</span>
+                <span class="text-xs font-bold">看图</span>
+              </div>
+              <div class="absolute top-[86%] left-[28%] w-[16%] h-[14%] bg-gradient-to-br from-red-500 to-red-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="15">
+                <span class="text-2xl">⚠️</span>
+                <span class="text-xs font-bold">陷阱</span>
+              </div>
+              <div class="absolute top-[86%] left-[8%] w-[16%] h-[14%] bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/30" data-index="16">
+                <span class="text-2xl">🎁</span>
+                <span class="text-xs font-bold">宝箱</span>
+              </div>
+            </div>
+            
+            <div class="absolute top-[6%] left-[8%] text-4xl transition-all duration-500 ease-out z-10" id="monopoly-player">👦</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="absolute bottom-[35%] right-[220px] flex flex-col items-center gap-3">
+        <button id="roll-dice" class="w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center text-4xl active:animate-dice-roll hover:scale-105 transition-transform">🎲</button>
+        <p class="mt-1 text-white font-bold text-lg drop-shadow text-center" id="dice-result"></p>
+        <p class="text-white/80 text-xs text-center">掷骰子前进</p>
+      </div>
+      
+      <button id="back-from-monopoly" class="absolute top-4 left-4 wood-sign px-5 py-3 text-white font-bold shadow-lg z-20">
+        ← 返回游戏选择
+      </button>
+    </div>
+  </div>
+
+  <div id="garden-page" class="page">
+    <div class="relative w-full h-full custom-bg overflow-hidden">
+      
+      <button id="back-to-home-2" class="absolute top-4 left-4 wood-sign px-4 py-2 text-white font-bold shadow-lg z-20">
+        ← 返回家园
+      </button>
+      
+      <div class="absolute top-4 right-4 parchment rounded-xl p-3 z-20">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">💰</span>
+            <span class="font-bold text-wood-brown" id="garden-coins">150</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⭐</span>
+            <span class="font-bold text-wood-brown">Lv.5</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="absolute bottom-4 right-4 flex flex-col gap-3 z-20">
+        <button id="garden-shop" class="wood-sign px-6 py-3 text-white font-bold shadow-lg">
+          🏪 家园商城
+        </button>
+        <button id="enter-room-btn" class="wood-sign px-6 py-3 text-white font-bold shadow-lg">
+          🚪 进入房间
+        </button>
+      </div>
+      
+      <div class="absolute bottom-4 left-4 bg-white/90 px-4 py-2 rounded-xl text-sm text-gray-700 z-20">
+        💡 点击地面装饰你的家园
+      </div>
+      
+      <div class="absolute bottom-16 left-1/2 transform -translate-x-1/2 w-64 bg-gray-700/80 rounded-full px-4 py-2 z-20">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🏠</span>
+          <div class="flex-1 h-4 bg-gray-600 rounded-full overflow-hidden">
+            <div id="garden-exp-bar" class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <span class="text-sm text-white font-bold" id="garden-level">Lv.1</span>
+        </div>
+      </div>
+      
+      <img id="garden-house" src="房子/房子1.png" class="absolute top-[42%] left-[20%] transform -translate-x-1/2 -translate-y-1/2 z-0" style="width: 900px; height: auto; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5)) brightness(0.9) contrast(0.9) saturate(0.9); border-radius: 8px;"/>
+      
+    </div>
+  </div>
+
+  <div id="shop-page" class="page">
+    <div class="parchment rounded-2xl m-4 p-4 shadow-xl">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🛒</span>
+          <h1 class="text-xl font-bold text-wood-brown">家园商城</h1>
+        </div>
+        <div class="flex items-center gap-2 bg-yellow-100 px-4 py-2 rounded-full">
+          <span class="text-xl">💰</span>
+          <span class="font-bold text-yellow-700" id="shop-coins">150</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex border-b border-gray-200 mx-4 mb-4">
+      <button id="shop-clothes" class="flex-1 py-3 font-medium text-purple-600 border-b-2 border-purple-600">👕 服装</button>
+      <button id="shop-seeds" class="flex-1 py-3 font-medium text-gray-500">🌱 种子</button>
+      <button id="shop-home" class="flex-1 py-3 font-medium text-gray-500">🏠 装修</button>
+    </div>
+    
+    <div class="p-4">
+      <div id="shop-items" class="grid grid-cols-2 gap-4">
+      </div>
+    </div>
+    
+    <button id="back-from-shop" class="fixed bottom-6 left-1/2 -translate-x-1/2 wood-sign px-8 py-3 text-white font-bold shadow-lg">
+      ← 返回
+    </button>
+  </div>
+
+  <div id="room-page" class="page">
+    <div class="relative w-full h-full room-bg" id="room-bg">
+      
+      <button id="back-from-room" class="absolute top-4 left-4 wood-sign px-4 py-2 text-white font-bold shadow-lg z-30">
+        ← 离开房间
+      </button>
+      
+      <div class="absolute top-4 right-4 wood-sign px-4 py-2 text-white font-bold shadow-lg z-30" id="room-shop-btn">
+        🏪 商店
+      </div>
+      
+      <div class="absolute top-16 left-1/2 transform -translate-x-1/2 z-30">
+        <div class="bg-white/90 rounded-full px-6 py-2 shadow-lg flex items-center gap-4 border-2 border-yellow-400">
+          <button id="room-prev-btn" class="text-2xl hover:text-yellow-500 transition-colors">←</button>
+          <div class="flex gap-2" id="room-indicators">
+            <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+            <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+            <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+            <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+            <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+          </div>
+          <button id="room-next-btn" class="text-2xl hover:text-yellow-500 transition-colors">→</button>
+        </div>
+      </div>
+      
+      <div class="absolute top-16 left-1/2 transform -translate-x-1/2 z-30">
+        <div class="bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl px-6 py-2 shadow-lg border-2 border-white">
+          <span class="text-white font-bold text-lg" id="room-title">我的房间1</span>
+        </div>
+      </div>
+      
+      <div class="absolute top-36 bottom-28 left-1/2 transform -translate-x-1/2 z-20 w-[88%] max-w-[520px]">
+        <img id="room-image" src="房间/房间1.png" class="w-full h-full object-contain cursor-pointer" alt="房间" style="transform: scale(0.98); transform-origin: center;" />
+        <div id="room-drop-zone" class="absolute inset-0 w-full h-full cursor-crosshair z-20" onclick="deselectFurniture()"></div>
+        <div id="room-placed-furniture" class="absolute inset-0 w-full h-full z-30"></div>
+      </div>
+      
+      <div id="room-decoration-panel" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-white/95 rounded-2xl shadow-xl z-40 hidden w-[90%] max-w-[700px] max-h-[400px] flex flex-col">
+        <div class="flex justify-between items-center p-4 sticky top-0 bg-white/95 backdrop-blur z-10 rounded-t-2xl border-b border-gray-200">
+          <h3 class="font-bold text-wood-brown">🏠 房间装修</h3>
+          <button id="close-decoration-panel" class="text-gray-500 hover:text-gray-700 text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">&times;</button>
+        </div>
+        <div class="p-4 overflow-y-auto flex-1">
+        <div class="mb-4">
+          <h4 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+            <span>🗃️</span> 已有家具（拖动到房间）
+          </h4>
+          <div id="owned-furniture-items" class="grid grid-cols-4 gap-2">
+          </div>
+        </div>
+        
+        <div>
+          <h4 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+            <span>🛒</span> 家具商城（购买后加入背包）
+          </h4>
+          <div id="furniture-shop-items" class="grid grid-cols-4 gap-2">
+          </div>
+        </div>
+        </div>
+      </div>
+      
+      <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-4 z-30">
+        <button id="room-decoration-btn" class="bg-gradient-to-r from-orange-400 to-red-500 rounded-xl px-6 py-3 text-white font-bold shadow-lg border-2 border-white flex items-center gap-2">
+          <span class="text-xl">🛠️</span>
+          <span>装修</span>
+        </button>
+      </div>
+      
+      <div class="absolute bottom-4 left-4 z-30">
+        <div class="bg-white/90 px-4 py-2 rounded-xl text-sm text-gray-700">
+          💡 点击地面装饰你的房间
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <div id="inventory-page" class="page">
+    <div class="parchment rounded-2xl m-4 p-4 shadow-xl relative">
+      <button id="back-from-inventory" class="absolute left-4 top-1/2 transform -translate-y-1/2 wood-sign px-4 py-2 text-white font-bold">← 返回</button>
+      <div class="flex items-center justify-center gap-3">
+        <span class="text-3xl">🎒</span>
+        <h1 class="text-xl font-bold text-wood-brown">我的背包</h1>
+      </div>
+    </div>
+    
+    <div class="flex border-b border-gray-200 mx-4 mb-4">
+      <button id="inv-clothes" class="flex-1 py-3 font-medium text-purple-600 border-b-2 border-purple-600">👕 服装</button>
+      <button id="inv-seeds" class="flex-1 py-3 font-medium text-gray-500">🌱 种子</button>
+      <button id="inv-home" class="flex-1 py-3 font-medium text-gray-500">🏠 装修</button>
+    </div>
+    
+    <div class="p-4">
+      <div id="inventory-items" class="grid grid-cols-2 gap-4">
+      </div>
+      <div id="inventory-empty" class="text-center py-12 text-gray-500 hidden">
+        <div class="text-6xl mb-4">📦</div>
+        <p>背包空空如也~</p>
+        <p class="text-sm">去商城逛逛吧！</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display: none;">
+    <div class="parchment rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-wood-brown flex items-center gap-2">
+          <span>⚙️</span> 设置
+        </h2>
+        <button onclick="closeSettings()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-wood-brown mb-2">👤 更改用户名</label>
+          <div class="flex gap-2">
+            <input type="text" id="settings-username" maxlength="10" placeholder="输入新用户名" class="flex-1 px-4 py-3 rounded-xl border-2 border-wood-brown/30 focus:border-sunflower-yellow focus:outline-none text-wood-brown">
+            <button onclick="saveUsername()" class="px-4 py-3 bg-gradient-to-r from-sunflower-yellow to-orange-400 text-wood-brown font-bold rounded-xl hover:scale-105 transition-transform">保存</button>
+          </div>
+        </div>
+        
+        <div class="pt-4 border-t border-wood-brown/20">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-wood-brown flex items-center gap-2">
+              <span>🎵</span> 背景音乐
+            </span>
+            <button id="music-toggle" onclick="toggleMusic()" class="w-14 h-7 rounded-full bg-green-500 transition-colors relative">
+              <div class="absolute top-1 left-8 w-5 h-5 bg-white rounded-full shadow transition-transform"></div>
+            </button>
+          </div>
+          
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-wood-brown flex items-center gap-2">
+              <span>🔊</span> 音效
+            </span>
+            <button id="sound-toggle" onclick="toggleSound()" class="w-14 h-7 rounded-full bg-green-500 transition-colors relative">
+              <div class="absolute top-1 left-8 w-5 h-5 bg-white rounded-full shadow transition-transform"></div>
+            </button>
+          </div>
+        </div>
+        
+        <div class="pt-4 border-t border-wood-brown/20">
+          <button onclick="closeSettings()" class="w-full py-3 bg-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-300 transition-colors">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="quiz-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display: none;">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-slide-up">
+      <div class="flex items-center gap-2 mb-4">
+        <span id="quiz-type" class="px-4 py-2 rounded-full text-xs font-medium bg-purple-100 text-purple-600">拼写题</span>
+        <span class="ml-auto text-sm text-gray-500" id="quiz-timer">30s</span>
+        <button id="close-quiz" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+      </div>
+      
+      <div class="text-center mb-6">
+        <div class="text-6xl mb-4" id="quiz-emoji">✏️</div>
+        <p id="quiz-question" class="text-xl font-bold mb-3">题目</p>
+        <div id="quiz-image" class="mb-4 hidden">
+          <img id="quiz-img" src="" alt="图片题" class="w-40 h-40 mx-auto rounded-xl">
+        </div>
+      </div>
+      
+      <div id="quiz-options" class="space-y-3 mb-6">
+      </div>
+      
+      <button id="submit-answer" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 rounded-xl">提交答案</button>
+    </div>
+  </div>
+
+  <script>
+    const wordBank = {
+      easy: [
+        { word: 'apple', meaning: '苹果', phonetic: '/ˈæpl/', image: '🍎' },
+        { word: 'book', meaning: '书', phonetic: '/bʊk/', image: '📚' },
+        { word: 'cat', meaning: '猫', phonetic: '/kæt/', image: '🐱' },
+        { word: 'dog', meaning: '狗', phonetic: '/dɒɡ/', image: '🐶' },
+        { word: 'egg', meaning: '鸡蛋', phonetic: '/eɡ/', image: '🥚' },
+        { word: 'fish', meaning: '鱼', phonetic: '/fɪʃ/', image: '🐟' },
+        { word: 'good', meaning: '好的', phonetic: '/ɡʊd/', image: '👍' },
+        { word: 'home', meaning: '家', phonetic: '/həʊm/', image: '🏠' },
+        { word: 'ice', meaning: '冰', phonetic: '/aɪs/', image: '🧊' },
+        { word: 'jump', meaning: '跳', phonetic: '/dʒʌmp/', image: '🏃' },
+        { word: 'kite', meaning: '风筝', phonetic: '/kaɪt/', image: '🪁' },
+        { word: 'lion', meaning: '狮子', phonetic: '/ˈlaɪən/', image: '🦁' },
+        { word: 'milk', meaning: '牛奶', phonetic: '/mɪlk/', image: '🥛' },
+        { word: 'name', meaning: '名字', phonetic: '/neɪm/', image: '✏️' },
+        { word: 'orange', meaning: '橙子', phonetic: '/ˈɒrɪndʒ/', image: '🍊' },
+        { word: 'pig', meaning: '猪', phonetic: '/pɪɡ/', image: '🐷' },
+        { word: 'queen', meaning: '女王', phonetic: '/kwiːn/', image: '👑' },
+        { word: 'rain', meaning: '雨', phonetic: '/reɪn/', image: '🌧️' },
+        { word: 'sun', meaning: '太阳', phonetic: '/sʌn/', image: '☀️' },
+        { word: 'tree', meaning: '树', phonetic: '/triː/', image: '🌳' },
+      ]
+    };
+
+    const characters = {
+      boy: [
+        { id: 'boy_default', name: '默认形象', emoji: '👦', price: 0, previewImage: '男生.png', backgroundImage: '男生.png' },
+        { id: 'boy_clothes_1', name: '衣服1', emoji: '👦', price: 50, previewImage: '衣服/男/衣服1.png', backgroundImage: '男生衣服/衣服1.jpg' },
+        { id: 'boy_clothes_2', name: '衣服2', emoji: '👦', price: 100, previewImage: '衣服/男/衣服2.png', backgroundImage: '男生衣服/衣服2.jpg' },
+        { id: 'boy_clothes_3', name: '衣服3', emoji: '👦', price: 150, previewImage: '衣服/男/衣服3.png', backgroundImage: '男生衣服/衣服3.jpg' },
+        { id: 'boy_clothes_4', name: '衣服4', emoji: '👦', price: 200, previewImage: '衣服/男/衣服4.png', backgroundImage: '男生衣服/衣服4.jpg' },
+      ],
+      girl: [
+        { id: 'girl_default', name: '默认形象', emoji: '👧', price: 0, previewImage: '女生.png', backgroundImage: '女生.png' },
+        { id: 'girl_clothes_1', name: '衣服1', emoji: '👧', price: 50, previewImage: '衣服/女/衣服1.png', backgroundImage: '女生衣服/衣服1.jpg' },
+        { id: 'girl_clothes_2', name: '衣服2', emoji: '👧', price: 100, previewImage: '衣服/女/衣服2.png', backgroundImage: '女生衣服/衣服2.jpg' },
+        { id: 'girl_clothes_3', name: '衣服3', emoji: '👧', price: 150, previewImage: '衣服/女/衣服3.png', backgroundImage: '女生衣服/衣服3.png' },
+        { id: 'girl_clothes_4', name: '衣服4', emoji: '👧', price: 200, previewImage: '衣服/女/衣服4.png', backgroundImage: '女生衣服/衣服4.png' },
+      ],
+    };
+
+    const seeds = [
+      { id: 'seed_sunflower', name: '向日葵种子', emoji: '🌻', price: 20, growTime: 10, reward: 50 },
+      { id: 'seed_tulip', name: '郁金香种子', emoji: '🌷', price: 30, growTime: 15, reward: 80 },
+      { id: 'seed_rose', name: '玫瑰种子', emoji: '🌹', price: 50, growTime: 20, reward: 120 },
+      { id: 'seed_gold', name: '金币种子', emoji: '💰', price: 100, growTime: 30, reward: 300 },
+      { id: 'seed_rainbow', name: '彩虹种子', emoji: '🌈', price: 150, growTime: 25, reward: 200 },
+    ];
+
+    const homeItems = [
+      { id: 'expand_garden', name: '扩建花园', emoji: '🏡', price: 300, description: '花园+2格' },
+      { id: 'item_fence', name: '木栅栏', emoji: '🏗️', price: 100, description: '装饰围栏' },
+      { id: 'item_bench', name: '花园长椅', emoji: '🪑', price: 150, description: '休息座椅' },
+      { id: 'item_umbrella', name: '遮阳伞', emoji: '☂️', price: 180, description: '户外遮阳' },
+      { id: 'item_lamp', name: '花园灯', emoji: '🏮', price: 80, description: '夜间照明' },
+      { id: 'item_fountain', name: '喷泉', emoji: '⛲', price: 400, description: '装饰水景' },
+    ];
+
+    const roomFurniture = [
+      { id: 'broken_chair', name: '破椅子', image: '家具的贴图/破椅子.png', price: 0, description: '破旧的椅子', isBroken: true },
+      { id: 'broken_table', name: '破桌子', image: '家具的贴图/破桌子.png', price: 0, description: '破旧的桌子', isBroken: true },
+      { id: 'broken_bed', name: '破床', image: '家具的贴图/破床.png', price: 0, description: '破旧的床', isBroken: true },
+      { id: 'broken_cabinet', name: '破柜子', image: '家具的贴图/破柜子.png', price: 0, description: '破旧的柜子', isBroken: true },
+      { id: 'broken_lamp', name: '破灯', image: '家具的贴图/破灯.png', price: 0, description: '破旧的灯', isBroken: true },
+      { id: 'broken_storage', name: '破收纳', image: '家具的贴图/破收纳.png', price: 0, description: '破旧的收纳', isBroken: true },
+      { id: 'broken_stove', name: '破灶台', image: '家具的贴图/破灶台.png', price: 0, description: '破旧的灶台', isBroken: true },
+      { id: 'broken_box', name: '破盒子', image: '家具的贴图/破盒子.png', price: 0, description: '破旧的盒子', isBroken: true },
+      { id: 'wood_chair', name: '木椅子', image: '家具的贴图/木椅子.png', price: 50, description: '木质椅子', isBroken: false },
+      { id: 'wood_table', name: '木桌子', image: '家具的贴图/木桌.png', price: 80, description: '木质桌子', isBroken: false },
+      { id: 'wood_bed', name: '木床', image: '家具的贴图/木床.png', price: 120, description: '木质床', isBroken: false },
+      { id: 'wood_cabinet', name: '木柜', image: '家具的贴图/木柜.png', price: 60, description: '木质柜子', isBroken: false },
+      { id: 'wood_sofa', name: '木沙发', image: '家具的贴图/木沙发.png', price: 150, description: '木质沙发', isBroken: false },
+      { id: 'wood_wardrobe', name: '木衣柜', image: '家具的贴图/木衣柜.png', price: 100, description: '木质衣柜', isBroken: false },
+      { id: 'wood_kitchen', name: '木橱柜', image: '家具的贴图/木橱柜.png', price: 90, description: '木质橱柜', isBroken: false },
+      { id: 'straw_stool', name: '草凳', image: '家具的贴图/草凳.png', price: 30, description: '草编凳子', isBroken: false },
+      { id: 'straw_bed', name: '草床', image: '家具的贴图/草床.png', price: 60, description: '草编床', isBroken: false },
+      { id: 'straw_shelf', name: '草架', image: '家具的贴图/草架.png', price: 40, description: '草编架子', isBroken: false },
+      { id: 'straw_cabinet', name: '草柜', image: '家具的贴图/草柜.png', price: 50, description: '草编柜子', isBroken: false },
+      { id: 'straw_table', name: '草桌', image: '家具的贴图/草桌.png', price: 45, description: '草编桌子', isBroken: false },
+      { id: 'straw_box', name: '草箱', image: '家具的贴图/草箱.png', price: 35, description: '草编箱子', isBroken: false },
+      { id: 'chair', name: '椅子', image: '家具的贴图/椅子.png', price: 70, description: '普通椅子', isBroken: false },
+      { id: 'table', name: '桌子', image: '家具的贴图/桌子.png', price: 100, description: '普通桌子', isBroken: false },
+      { id: 'bed', name: '床', image: '家具的贴图/床.png', price: 150, description: '普通床', isBroken: false },
+      { id: 'cabinet', name: '柜子', image: '家具的贴图/柜子.png', price: 80, description: '普通柜子', isBroken: false },
+      { id: 'sofa', name: '沙发', image: '家具的贴图/沙发.png', price: 200, description: '普通沙发', isBroken: false },
+      { id: 'wardrobe', name: '衣柜', image: '家具的贴图/衣柜.png', price: 120, description: '普通衣柜', isBroken: false },
+      { id: 'kitchen_cabinet', name: '橱柜', image: '家具的贴图/橱柜.png', price: 110, description: '橱柜', isBroken: false },
+      { id: 'dining_table', name: '餐桌', image: '家具的贴图/餐桌.png', price: 130, description: '餐桌', isBroken: false },
+      { id: 'locker', name: '储物柜', image: '家具的贴图/储物柜.png', price: 95, description: '储物柜', isBroken: false },
+      { id: 'leather_sofa', name: '真皮沙发', image: '家具的贴图/真皮沙发.png', price: 300, description: '真皮沙发', isBroken: false },
+      { id: 'lamp', name: '灯泡', image: '家具的贴图/灯泡.png', price: 25, description: '灯泡', isBroken: false },
+      { id: 'luxury_chair', name: '豪椅', image: '家具的贴图/豪椅.png', price: 180, description: '豪华椅子', isBroken: false },
+      { id: 'luxury_table', name: '豪桌', image: '家具的贴图/豪桌.png', price: 250, description: '豪华桌子', isBroken: false },
+      { id: 'luxury_bed', name: '豪床', image: '家具的贴图/豪床.png', price: 350, description: '豪华床', isBroken: false },
+      { id: 'luxury_wardrobe', name: '豪衣柜', image: '家具的贴图/豪衣柜.png', price: 280, description: '豪华衣柜', isBroken: false },
+      { id: 'big_bed', name: '大床', image: '家具的贴图/大床.png', price: 400, description: '大床', isBroken: false },
+      { id: 'chair1', name: '椅子1', image: '家具的贴图/椅子1.png', price: 60, description: '椅子', isBroken: false },
+      { id: 'table1', name: '桌子1', image: '家具的贴图/桌子1.png', price: 90, description: '桌子', isBroken: false },
+    ];
+
+    const gameState = {
+      coins: 150,
+      level: 5,
+      username: '小花',
+      currentPage: 'login-page',
+      pageHistory: ['login-page'],
+      selectedGame: null,
+      gardenItems: [],
+      monopolyPosition: 0,
+      monopolyScore: 0,
+      currentQuestion: null,
+      isCorrect: null,
+      selectedGender: 'girl',
+      selectedCharacter: 'girl_default',
+      gardenPlots: [null, null, null, null],
+      quizRound: 0,
+      quizCorrectCount: 0,
+      quizTotalRounds: 5,
+      usedWords: [],
+      musicEnabled: true,
+      soundEnabled: true,
+      gardenSize: 4,
+      inventory: {
+        clothes: ['girl_default'],
+        seeds: [],
+        home: []
+      },
+      roomFurniture: { 1: [], 2: [], 3: [], 4: [], 5: [] },
+      inventoryRoom: [],
+      draggingFurnitureId: null,
+      gardenExp: 0,
+      gardenLevel: 1,
+      dailyTasks: {
+        'spell-3': { progress: 0, target: 3, reward: 20, completed: false, claimed: false },
+        'monopoly-5': { progress: 0, target: 5, reward: 15, completed: false, claimed: false },
+        'garden-plant-2': { progress: 0, target: 2, reward: 30, completed: false, claimed: false },
+        'listen-5': { progress: 0, target: 5, reward: 25, completed: false, claimed: false },
+        'picture-5': { progress: 0, target: 5, reward: 25, completed: false, claimed: false },
+        'spell-5': { progress: 0, target: 5, reward: 35, completed: false, claimed: false },
+        'garden-decorate-1': { progress: 0, target: 1, reward: 10, completed: false, claimed: false },
+        'monopoly-win-1': { progress: 0, target: 1, reward: 50, completed: false, claimed: false }
+      },
+      stats: {
+        spellCount: 0,
+        monopolySteps: 0,
+        gardenPlanted: 0,
+        listenCount: 0,
+        pictureCount: 0,
+        gardenDecorated: 0,
+        monopolyWins: 0
+      }
+    };
+
+    function selectGender(gender) {
+      gameState.selectedGender = gender;
+      document.querySelectorAll('.gender-selector').forEach(el => el.classList.remove('selected'));
+      document.getElementById('gender-' + gender).classList.add('selected');
+      gameState.selectedCharacter = gender === 'boy' ? 'boy_default' : 'girl_default';
+      const defaultId = gender === 'boy' ? 'boy_default' : 'girl_default';
+      if (!gameState.inventory.clothes.includes(defaultId)) {
+        gameState.inventory.clothes.push(defaultId);
+      }
+    }
+
+    function showPage(pageId) {
+      if (gameState.currentPage !== pageId) {
+        gameState.pageHistory.push(pageId);
+      }
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+      gameState.currentPage = pageId;
+      setTimeout(() => { updatePageBackground(); }, 100);
+    }
+
+    function updatePageBackground() {
+      const pages = ['home-page', 'garden-page'];
+      const gender = gameState.selectedGender;
+      const character = characters[gender].find(c => c.id === gameState.selectedCharacter);
+      const bgImage = character ? character.backgroundImage : (gender === 'boy' ? '男生.png' : '女生.png');
+      pages.forEach(pageId => {
+        const page = document.getElementById(pageId);
+        if (page) {
+          const bgDivs = page.querySelectorAll('.custom-bg, .bg-boy, .bg-girl');
+          bgDivs.forEach(bgDiv => {
+            bgDiv.style.backgroundImage = 'url("' + bgImage + '")';
+            bgDiv.style.backgroundSize = 'cover';
+            bgDiv.style.backgroundPosition = 'center';
+            bgDiv.style.backgroundRepeat = 'no-repeat';
+          });
+        }
+      });
+    }
+
+    function searchWord(dictType) {
+      const input = document.getElementById('word-search-input');
+      const word = input.value.trim();
+      if (!word) {
+        alert('请输入要搜索的单词！');
+        return;
+      }
+      
+      const encodedWord = encodeURIComponent(word);
+      let url;
+      
+      if (dictType === 'youdao') {
+        url = `https://dict.youdao.com/search?q=${encodedWord}&keyfrom=dict.index`;
+      } else {
+        url = `https://dict.baidu.com/s?wd=${encodedWord}`;
+      }
+      
+      window.open(url, '_blank');
+      input.value = '';
+    }
+    
+    function goBack() {
+      if (gameState.pageHistory.length > 1) {
+        gameState.pageHistory.pop();
+        const prevPage = gameState.pageHistory[gameState.pageHistory.length - 1];
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(prevPage).classList.add('active');
+        gameState.currentPage = prevPage;
+      }
+    }
+
+    function addGardenExp(exp) {
+      if (gameState.gardenLevel >= 5) return;
+      gameState.gardenExp += exp;
+      const expNeeded = gameState.gardenLevel * 100;
+      if (gameState.gardenExp >= expNeeded) {
+        gameState.gardenExp -= expNeeded;
+        gameState.gardenLevel++;
+        updateHouseImage();
+        alert('🎉 家园升级！当前等级：Lv.' + gameState.gardenLevel);
+      }
+      updateGardenExpBar();
+    }
+
+    function updateGardenExpBar() {
+      const expBar = document.getElementById('garden-exp-bar');
+      const levelEl = document.getElementById('garden-level');
+      if (expBar && levelEl) {
+        const expNeeded = gameState.gardenLevel * 100;
+        const percent = Math.min(100, (gameState.gardenExp / expNeeded) * 100);
+        expBar.style.width = percent + '%';
+        levelEl.textContent = 'Lv.' + gameState.gardenLevel;
+      }
+    }
+
+    function handleTaskClick(taskId) {
+      const task = gameState.dailyTasks[taskId];
+      if (!task) return;
+      if (task.claimed) return;
+      if (task.completed) {
+        claimDailyTask(taskId);
+      } else {
+        const taskEl = document.querySelector('[data-task-id="' + taskId + '"]');
+        if (taskEl) {
+          const taskName = taskEl.querySelector('.font-medium').textContent;
+          alert('开始任务：' + taskName + '\n目标：完成' + task.target + '次');
+        }
+      }
+    }
+
+    function updateDailyTask(taskId, increment) {
+      const task = gameState.dailyTasks[taskId];
+      if (!task || task.claimed) return;
+      task.progress = Math.min(task.target, task.progress + increment);
+      if (task.progress >= task.target) task.completed = true;
+      updateDailyTasksUI();
+    }
+
+    function updateDailyTasksUI() {
+      const container = document.getElementById('daily-tasks-container');
+      if (!container) return;
+      const tasks = container.querySelectorAll('.daily-task');
+      tasks.forEach(taskEl => {
+        const taskId = taskEl.dataset.taskId;
+        const task = gameState.dailyTasks[taskId];
+        if (!task) return;
+        const progressBar = taskEl.querySelector('.task-progress');
+        const progressText = taskEl.querySelector('.task-progress-text');
+        const statusText = taskEl.querySelector('.task-status');
+        if (progressBar) {
+          const percent = (task.progress / task.target) * 100;
+          progressBar.style.width = percent + '%';
+          if (task.completed) {
+            progressBar.classList.remove('bg-blue-500');
+            progressBar.classList.add('bg-green-500');
+          }
+        }
+        if (progressText) progressText.textContent = task.progress + '/' + task.target;
+        if (statusText) {
+          if (task.claimed) {
+            statusText.textContent = '已领取';
+            statusText.className = 'text-xs text-green-600 font-bold';
+          } else if (task.completed) {
+            statusText.textContent = '可领取';
+            statusText.className = 'text-xs text-yellow-600 font-bold animate-pulse';
+          } else {
+            statusText.textContent = '进行中';
+            statusText.className = 'text-xs text-gray-400';
+          }
+        }
+        if (task.claimed) {
+          taskEl.classList.add('opacity-50', 'cursor-not-allowed');
+          taskEl.classList.remove('hover:bg-white/70');
+        } else if (task.completed) {
+          taskEl.classList.add('ring-2', 'ring-yellow-400');
+        } else {
+          taskEl.classList.remove('ring-2', 'ring-yellow-400');
+        }
+      });
+    }
+
+    function claimDailyTask(taskId) {
+      const task = gameState.dailyTasks[taskId];
+      if (!task || !task.completed || task.claimed) return;
+      gameState.coins += task.reward;
+      task.claimed = true;
+      updateAllUI();
+      updateDailyTasksUI();
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-6 py-3 rounded-xl shadow-xl animate-bounce z-50';
+      notification.textContent = '🎉 领取成功！+' + task.reward + '金币';
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 2000);
+    }
+
+    function updateHouseImage() {
+      const houseImg = document.getElementById('garden-house');
+      if (houseImg) houseImg.src = '房子/房子' + gameState.gardenLevel + '.png';
+    }
+
+    function updateAllUI() {
+      const coinElements = ['home-coins', 'monopoly-coins', 'garden-coins', 'shop-coins'];
+      coinElements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = gameState.coins;
+      });
+      updateAvatar();
+    }
+
+    function updateAvatar() {
+      const avatarEl = document.getElementById('home-avatar');
+      if (avatarEl) avatarEl.textContent = gameState.selectedGender === 'boy' ? '👦' : '👧';
+      const playerEl = document.getElementById('monopoly-player');
+      if (playerEl) playerEl.textContent = gameState.selectedGender === 'boy' ? '👦' : '👧';
+    }
+
+    document.getElementById('gender-toggle').addEventListener('click', () => {
+      const newGender = gameState.selectedGender === 'boy' ? 'girl' : 'boy';
+      selectGender(newGender);
+      const genderIcon = document.getElementById('gender-icon');
+      if (genderIcon) genderIcon.textContent = newGender === 'boy' ? '👦' : '👧';
+      updateAvatar();
+      updatePageBackground();
+    });
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      const progressBar = document.getElementById('loading-progress');
+      const loadingText = document.getElementById('loading-text');
+      const loadingPercent = document.getElementById('loading-percent');
+      let progress = 0;
+      const loadingMessages = ['正在准备花园...', '种植向日葵...', '邀请小猫...', '准备英语单词...', '即将开始...'];
+      const loadingInterval = setInterval(() => {
+        progress += 20;
+        progressBar.style.width = progress + '%';
+        loadingPercent.textContent = progress + '%';
+        loadingText.textContent = loadingMessages[Math.floor(progress / 20) - 1] || loadingMessages[loadingMessages.length - 1];
+        if (progress >= 100) {
+          clearInterval(loadingInterval);
+          setTimeout(() => {
+            showPage('home-page');
+            updateAvatar();
+            updatePageBackground();
+            initAudio();
+          }, 500);
+        }
+      }, 400);
+    });
+
+    document.getElementById('game-btn').addEventListener('click', () => showPage('game-select-page'));
+    document.getElementById('garden-btn').addEventListener('click', () => showPage('garden-page'));
+    document.getElementById('enter-room-btn').addEventListener('click', () => {
+      showPage('room-page');
+      initRoomPage();
+    });
+
+    document.getElementById('home-shop-btn').addEventListener('click', () => {
+      renderShop('clothes');
+      showPage('shop-page');
+    });
+
+    document.getElementById('inventory-btn').addEventListener('click', () => {
+      renderInventory('clothes');
+      showPage('inventory-page');
+    });
+
+    function renderInventory(category) {
+      const itemsContainer = document.getElementById('inventory-items');
+      const emptyEl = document.getElementById('inventory-empty');
+      let items = [], sourceData = [];
+      switch(category) {
+        case 'clothes': items = gameState.inventory.clothes; sourceData = characters[gameState.selectedGender]; break;
+        case 'seeds': items = gameState.inventory.seeds; sourceData = seeds; break;
+        case 'home': items = gameState.inventory.home; sourceData = homeItems.filter(i => i.id !== 'expand_garden'); break;
+      }
+      if (items.length === 0) {
+        itemsContainer.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+      itemsContainer.innerHTML = items.map(itemId => {
+        const item = sourceData.find(i => i.id === itemId);
+        if (!item) return '';
+        const isEquipped = category === 'clothes' && gameState.selectedCharacter === itemId;
+        const imageDisplay = item.previewImage 
+          ? '<img src="' + item.previewImage + '" class="w-20 h-20 mx-auto mb-2 object-contain" />' 
+          : '<div class="text-4xl mb-2 animate-float-slow">' + item.emoji + '</div>';
+        return '<div class="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-shadow"><div class="text-center">' + imageDisplay + '<h3 class="font-bold text-wood-brown">' + item.name + '</h3>' + (item.description ? '<p class="text-xs text-gray-500 mt-1">' + item.description + '</p>' : '') + (isEquipped ? '<span class="inline-block mt-2 bg-green-100 text-green-600 px-3 py-1 rounded-full text-xs font-bold">✓ 已装备</span>' : '') + (category === 'clothes' && !isEquipped ? '<button class="mt-3 w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-xl font-bold" onclick="equipItem(\'' + itemId + '\')">装备</button>' : '') + (category === 'home' ? '<button class="mt-3 w-full bg-gradient-to-r from-green-500 to-cyan-500 text-white py-2 rounded-xl font-bold" onclick="placeItem(\'' + itemId + '\')">放置</button>' : '') + '</div></div>';
+      }).join('');
+    }
+
+    function equipItem(itemId) {
+      gameState.selectedCharacter = itemId;
+      renderInventory('clothes');
+      updatePageBackground();
+      alert('👕 已更换服装！');
+    }
+
+    function placeItem(itemId) {
+      const item = homeItems.find(i => i.id === itemId);
+      if (!gameState.gardenItems.includes(itemId)) gameState.gardenItems.push(itemId);
+      alert('🏠 ' + item.name + '已放置到家园！');
+      showPage('garden-page');
+    }
+
+    document.getElementById('inv-clothes').addEventListener('click', () => {
+      document.querySelectorAll('[id^="inv-"]').forEach(b => b.classList.remove('text-purple-600', 'border-purple-600'));
+      document.getElementById('inv-clothes').classList.add('text-purple-600', 'border-purple-600');
+      renderInventory('clothes');
+    });
+    document.getElementById('inv-seeds').addEventListener('click', () => {
+      document.querySelectorAll('[id^="inv-"]').forEach(b => b.classList.remove('text-purple-600', 'border-purple-600'));
+      document.getElementById('inv-seeds').classList.add('text-purple-600', 'border-purple-600');
+      renderInventory('seeds');
+    });
+    document.getElementById('inv-home').addEventListener('click', () => {
+      document.querySelectorAll('[id^="inv-"]').forEach(b => b.classList.remove('text-purple-600', 'border-purple-600'));
+      document.getElementById('inv-home').classList.add('text-purple-600', 'border-purple-600');
+      renderInventory('home');
+    });
+    document.getElementById('back-from-inventory').addEventListener('click', () => goBack());
+
+    document.getElementById('back-to-home').addEventListener('click', () => goBack());
+
+    function startGame(gameType) {
+      gameState.selectedGame = gameType;
+      if (gameType === 'monopoly') {
+        showPage('monopoly-page');
+        gameState.monopolyPosition = 0;
+        gameState.monopolyScore = 0;
+        updatePlayerPosition();
+        startMonopolyTimer();
+      } else {
+        gameState.quizRound = 1;
+        gameState.quizCorrectCount = 0;
+        gameState.usedWords = [];
+        generateQuestion(gameType);
+        showQuizModal(gameType);
+      }
+    }
+
+    let monopolyTimer;
+    function startMonopolyTimer() {
+      let timeLeft = 60;
+      const timerElement = document.getElementById('monopoly-timer');
+      clearInterval(monopolyTimer);
+      monopolyTimer = setInterval(() => {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(monopolyTimer);
+          alert('⏰ 时间到！\n得分: ' + gameState.monopolyScore + '\n金币: ' + gameState.coins);
+          goBack();
+        }
+      }, 1000);
+    }
+
+    document.getElementById('roll-dice').addEventListener('click', () => {
+      const diceBtn = document.getElementById('roll-dice');
+      if (diceBtn.disabled) return;
+      const dice = Math.floor(Math.random() * 6) + 1;
+      document.getElementById('dice-result').textContent = '🎲 掷出了 ' + dice + ' 点！';
+      diceBtn.disabled = true;
+      setTimeout(() => movePlayerStepByStep(dice), 500);
+    });
+
+    function movePlayerStepByStep(steps) {
+      if (steps <= 0) {
+        const cellType = getCellType(gameState.monopolyPosition);
+        handleCellEvent(cellType);
+        document.getElementById('roll-dice').disabled = false;
+        return;
+      }
+      const nextPosition = (gameState.monopolyPosition + 1) % 17;
+      gameState.monopolyPosition = nextPosition;
+      updatePlayerPosition();
+      updateDailyTask('monopoly-5', 1);
+      setTimeout(() => movePlayerStepByStep(steps - 1), 400);
+    }
+
+    function updatePlayerPosition() {
+      const player = document.getElementById('monopoly-player');
+      const positions = [
+        { top: '6%', left: '8%' }, { top: '22%', left: '8%' }, { top: '22%', left: '28%' },
+        { top: '38%', left: '28%' }, { top: '38%', left: '48%' }, { top: '22%', left: '48%' },
+        { top: '22%', left: '68%' }, { top: '6%', left: '68%' }, { top: '6%', left: '85%' },
+        { top: '54%', left: '85%' }, { top: '70%', left: '68%' }, { top: '86%', left: '68%' },
+        { top: '86%', left: '48%' }, { top: '70%', left: '48%' }, { top: '70%', left: '28%' },
+        { top: '86%', left: '28%' }, { top: '86%', left: '8%' },
+      ];
+      const pos = positions[gameState.monopolyPosition];
+      player.style.top = pos.top;
+      player.style.left = pos.left;
+    }
+
+    function getCellType(position) {
+      const types = { 0: 'loop', 1: 'spell', 2: 'reward', 3: 'listen', 4: 'trap', 5: 'reward', 6: 'chest', 7: 'spell', 8: 'picture', 9: 'trap', 10: 'listen', 11: 'chest', 12: 'reward', 13: 'spell', 14: 'picture', 15: 'trap', 16: 'chest' };
+      return types[position];
+    }
+
+    function handleCellEvent(type) {
+      switch(type) {
+        case 'loop': gameState.monopolyScore += 500; gameState.coins += 100; addGardenExp(30); updateDailyTask('monopoly-win-1', 1); updateAllUI(); alert('🏁 完成一圈！\n获得500分 + 100金币 + 30经验！'); break;
+        case 'spell': generateQuestion('spell'); showQuizModal('spell'); break;
+        case 'listen': generateQuestion('listen'); showQuizModal('listen'); break;
+        case 'picture': generateQuestion('picture'); showQuizModal('picture'); break;
+        case 'reward': const reward = Math.floor(Math.random() * 20) + 10; gameState.coins += reward; alert('📝 奖励！获得 ' + reward + ' 金币'); updateAllUI(); break;
+        case 'trap': const penalty = Math.floor(Math.random() * 15) + 5; gameState.coins = Math.max(0, gameState.coins - penalty); alert('⚠️ 陷阱！扣除 ' + penalty + ' 金币'); updateAllUI(); break;
+        case 'chest': const chestReward = Math.floor(Math.random() * 50) + 30; gameState.coins += chestReward; alert('🎁 宝箱！获得 ' + chestReward + ' 金币'); updateAllUI(); break;
+        case 'safe': alert('🌳 安全区！休息一下~'); break;
+      }
+    }
+
+    document.getElementById('back-from-monopoly').addEventListener('click', () => { clearInterval(monopolyTimer); goBack(); });
+
+    let quizTimer;
+    function generateQuestion(gameType) {
+      const words = wordBank.easy;
+      const availableWords = words.filter(w => !gameState.usedWords.includes(w.word));
+      const randomIndex = Math.floor(Math.random() * availableWords.length);
+      const correctWord = availableWords[randomIndex] || words[Math.floor(Math.random() * words.length)];
+      gameState.usedWords.push(correctWord.word);
+      const wrongWords = words.filter(w => w.word !== correctWord.word);
+      const shuffledWrong = wrongWords.sort(() => Math.random() - 0.5).slice(0, 3);
+      gameState.currentQuestion = { word: correctWord, options: [...shuffledWrong, correctWord].sort(() => Math.random() - 0.5), type: gameType };
+    }
+
+    function showQuizModal(gameType) {
+      const modal = document.getElementById('quiz-modal');
+      const typeEl = document.getElementById('quiz-type');
+      const emojiEl = document.getElementById('quiz-emoji');
+      const questionEl = document.getElementById('quiz-question');
+      const optionsEl = document.getElementById('quiz-options');
+      const imageEl = document.getElementById('quiz-image');
+      const typeInfo = {
+        'spell': { label: '拼写题', emoji: '✏️', question: '请拼写单词：' + gameState.currentQuestion.word.meaning },
+        'listen': { label: '听力题', emoji: '🎧', question: '请选择听到的单词：' + gameState.currentQuestion.word.phonetic },
+        'picture': { label: '看图选词', emoji: '🖼️', question: '请选择图片对应的单词' },
+        'monopoly': { label: '答题', emoji: '📝', question: '请拼写单词：' + gameState.currentQuestion.word.meaning }
+      };
+      typeEl.textContent = typeInfo[gameType].label + ' | 第' + gameState.quizRound + '/' + gameState.quizTotalRounds + '轮';
+      typeEl.className = 'px-4 py-2 rounded-full text-xs font-medium ' + (gameType === 'spell' ? 'bg-purple-100 text-purple-600' : gameType === 'listen' ? 'bg-cyan-100 text-cyan-600' : 'bg-pink-100 text-pink-600');
+      emojiEl.textContent = typeInfo[gameType].emoji;
+      questionEl.textContent = typeInfo[gameType].question;
+      if (gameType === 'picture') {
+        imageEl.classList.remove('hidden');
+        imageEl.innerHTML = '<div class="text-8xl mb-4">' + gameState.currentQuestion.word.image + '</div>';
+      } else {
+        imageEl.classList.add('hidden');
+      }
+      optionsEl.innerHTML = '';
+      if (gameType === 'spell') {
+        optionsEl.innerHTML = '<input type="text" id="answer-input" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 outline-none text-center text-xl" placeholder="输入答案">';
+      } else {
+        gameState.currentQuestion.options.forEach((opt, index) => {
+          const btn = document.createElement('button');
+          btn.className = 'w-full py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-xl font-bold hover:scale-105 transition-transform hover:from-purple-100 hover:to-purple-200';
+          btn.textContent = String.fromCharCode(65 + index) + '. ' + opt.word;
+          btn.dataset.word = opt.word;
+          btn.addEventListener('click', () => checkAnswer(opt.word));
+          optionsEl.appendChild(btn);
+        });
+      }
+      modal.style.display = 'flex';
+      startQuizTimer();
+    }
+
+    function startQuizTimer() {
+      let timeLeft = 30;
+      const timerElement = document.getElementById('quiz-timer');
+      clearInterval(quizTimer);
+      quizTimer = setInterval(() => {
+        timeLeft--;
+        timerElement.textContent = timeLeft + 's';
+        if (timeLeft <= 0) {
+          clearInterval(quizTimer);
+          alert('⏰ 时间到！');
+          closeQuizModal();
+        }
+      }, 1000);
+    }
+
+    function checkAnswer(userAnswer) {
+      clearInterval(quizTimer);
+      const correct = userAnswer.toLowerCase() === gameState.currentQuestion.word.word.toLowerCase();
+      if (correct) {
+        playSuccessSound();
+        gameState.quizCorrectCount++;
+        const reward = 10;
+        const expReward = 5;
+        gameState.coins += reward;
+        gameState.monopolyScore += 100;
+        addGardenExp(expReward);
+        const gameType = gameState.currentQuestion.type;
+        if (gameType === 'spell') { updateDailyTask('spell-3', 1); updateDailyTask('spell-5', 1); }
+        else if (gameType === 'listen') updateDailyTask('listen-5', 1);
+        else if (gameType === 'picture') updateDailyTask('picture-5', 1);
+        updateAllUI();
+        if (gameState.quizRound >= gameState.quizTotalRounds) {
+          showQuizResult();
+        } else {
+          gameState.quizRound++;
+          alert('✅ 答对了！获得 ' + reward + ' 金币 +' + expReward + ' 经验！\n当前进度：' + gameState.quizRound + '/' + gameState.quizTotalRounds);
+          generateQuestion(gameType);
+          showQuizModal(gameType);
+        }
+      } else {
+        playFailSound();
+        if (gameState.quizRound >= gameState.quizTotalRounds) {
+          showQuizResult();
+        } else {
+          gameState.quizRound++;
+          alert('❌ 答错了！正确答案是：' + gameState.currentQuestion.word.word + '\n当前进度：' + gameState.quizRound + '/' + gameState.quizTotalRounds);
+          const gameType = gameState.currentQuestion.type;
+          generateQuestion(gameType);
+          showQuizModal(gameType);
+        }
+      }
+    }
+
+    function showQuizResult() {
+      const total = gameState.quizTotalRounds;
+      const correct = gameState.quizCorrectCount;
+      const accuracy = Math.round((correct / total) * 100);
+      const bonusCoins = correct * 20;
+      gameState.coins += bonusCoins;
+      updateAllUI();
+      alert('🎉 恭喜完成本轮挑战！\n\n📊 答题统计：\n正确：' + correct + '/' + total + '\n正确率：' + accuracy + '%\n\n💰 总奖励：' + bonusCoins + ' 金币');
+      document.getElementById('quiz-modal').style.display = 'none';
+      goBack();
+    }
+
+    document.getElementById('submit-answer').addEventListener('click', () => {
+      const input = document.getElementById('answer-input');
+      if (input) checkAnswer(input.value);
+    });
+
+    function closeQuizModal() {
+      clearInterval(quizTimer);
+      document.getElementById('quiz-modal').style.display = 'none';
+    }
+
+    function showSettings() {
+      const modal = document.getElementById('settings-modal');
+      const usernameInput = document.getElementById('settings-username');
+      if (modal && usernameInput) {
+        usernameInput.value = gameState.username;
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeSettings() {
+      const modal = document.getElementById('settings-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function saveUsername() {
+      const input = document.getElementById('settings-username');
+      const newName = input.value.trim();
+      if (newName && newName.length <= 10) {
+        gameState.username = newName;
+        const homeUsername = document.getElementById('home-username');
+        if (homeUsername) homeUsername.textContent = newName;
+        const monopolyUsername = document.getElementById('monopoly-username');
+        if (monopolyUsername) monopolyUsername.textContent = newName;
+        alert('👤 用户名已更改为：' + newName);
+        closeSettings();
+      } else {
+        alert('❌ 请输入有效的用户名（1-10个字符）');
+      }
+    }
+
+    document.getElementById('close-quiz').addEventListener('click', () => {
+      clearInterval(quizTimer);
+      if (gameState.quizRound > 0 && gameState.quizRound <= gameState.quizTotalRounds) {
+        const total = gameState.quizTotalRounds;
+        const correct = gameState.quizCorrectCount;
+        const accuracy = Math.round((correct / total) * 100);
+        const bonusCoins = correct * 20;
+        gameState.coins += bonusCoins;
+        updateAllUI();
+        alert('⏹️ 中途退出\n\n📊 答题统计：\n正确：' + correct + '/' + total + '\n正确率：' + accuracy + '%\n\n💰 已获得奖励：' + bonusCoins + ' 金币');
+      }
+      document.getElementById('quiz-modal').style.display = 'none';
+      goBack();
+    });
+    document.getElementById('back-to-home-2').addEventListener('click', () => goBack());
+    document.getElementById('garden-shop').addEventListener('click', () => { renderShop('clothes'); showPage('shop-page'); });
+
+    function renderShop(category) {
+      const itemsContainer = document.getElementById('shop-items');
+      let items = [];
+      switch(category) {
+        case 'clothes': items = characters[gameState.selectedGender]; break;
+        case 'seeds': items = seeds; break;
+        case 'home': items = homeItems; break;
+      }
+      itemsContainer.innerHTML = items.map(item => {
+        const imageDisplay = item.previewImage 
+          ? '<img src="' + item.previewImage + '" class="w-20 h-20 mx-auto mb-2 object-contain" />' 
+          : '<div class="text-4xl mb-2 animate-float-slow">' + item.emoji + '</div>';
+        return '<div class="bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-shadow"><div class="text-center">' + imageDisplay + '<h3 class="font-bold text-wood-brown">' + item.name + '</h3>' + (item.description ? '<p class="text-xs text-gray-500 mt-1">' + item.description + '</p>' : '') + (item.growTime ? '<p class="text-xs text-gray-400 mt-1">⏱️ ' + item.growTime + '秒 | 💰 ' + item.reward + '</p>' : '') + '<button class="mt-3 w-full bg-gradient-to-r from-sunflower-yellow to-orange-400 text-wood-brown py-2 rounded-xl font-bold hover:scale-105 transition-transform" onclick="buyShopItem(\'' + item.id + '\', \'' + category + '\', ' + item.price + ')">💰 ' + item.price + '</button></div></div>';
+      }).join('');
+    }
+
+    document.getElementById('shop-clothes').addEventListener('click', () => {
+      document.querySelectorAll('[id^="shop-"]').forEach(b => b.classList.remove('text-purple-600', 'border-purple-600'));
+      document.getElementById('shop-clothes').classList.add('text-purple-600', 'border-purple-600');
+      renderShop('clothes');
+    });
+    document.getElementById('shop-seeds').addEventListener('click', () => {
+      document.querySelectorAll('[id^="shop-"]').forEach(b => b.classList.remove('text-purple-600', 'border-purple-600'));
+      document.getElementById('shop-seeds').classList.add('text-purple-600', 'border-purple-600');
+      renderShop('seeds');
+    });
+    document.getElementById('shop-home').addEventListener('click', () => {
+      document.querySelectorAll('[id^="shop-"]').forEach(b => b.classList.remove('text-purple-600', 'border-purple-600'));
+      document.getElementById('shop-home').classList.add('text-purple-600', 'border-purple-600');
+      renderShop('home');
+    });
+
+    function buyShopItem(itemId, category, price) {
+      if (gameState.coins < price) { alert('💰 金币不足！请先去赚金币~'); return; }
+      gameState.coins -= price;
+      updateAllUI();
+      switch(category) {
+        case 'clothes':
+          gameState.selectedCharacter = itemId;
+          if (!gameState.inventory.clothes.includes(itemId)) gameState.inventory.clothes.push(itemId);
+          updatePageBackground();
+          alert('👕 购买成功！已更换服装~');
+          break;
+        case 'seeds':
+          const seed = seeds.find(s => s.id === itemId);
+          if (!gameState.inventory.seeds.includes(itemId)) gameState.inventory.seeds.push(itemId);
+          if (gameState.gardenPlots.filter(p => p === null).length > 0) {
+            const emptyPlot = gameState.gardenPlots.indexOf(null);
+            gameState.gardenPlots[emptyPlot] = { ...seed, progress: 0, plantedAt: Date.now() };
+            updateDailyTask('garden-plant-2', 1);
+            alert('🌱 购买成功！已种植 ' + seed.name + '~');
+          } else {
+            gameState.gardenPlots.push({ ...seed, progress: 0, plantedAt: Date.now() });
+            gameState.gardenSize++;
+            updateDailyTask('garden-plant-2', 1);
+            alert('🌱 购买成功！' + seed.name + '已加入花园~');
+          }
+          break;
+        case 'home':
+          if (itemId === 'expand_garden') {
+            gameState.gardenSize += 2;
+            gameState.gardenPlots.push(null, null);
+          } else {
+            gameState.gardenItems.push(itemId);
+            if (!gameState.inventory.home.includes(itemId)) gameState.inventory.home.push(itemId);
+            updateDailyTask('garden-decorate-1', 1);
+          }
+          alert('🏠 购买成功！' + homeItems.find(i => i.id === itemId).name + '已添加~');
+          break;
+      }
+    }
+
+    document.getElementById('back-from-shop').addEventListener('click', () => goBack());
+
+    document.getElementById('garden-page').addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const decorations = ['花的贴图/花1.png', '花的贴图/花2.png', '花的贴图/花3.png', '花的贴图/花4.png', '花的贴图/草1.png', '花的贴图/草2.png'];
+      const randomDecoration = decorations[Math.floor(Math.random() * decorations.length)];
+      const decoration = document.createElement('img');
+      decoration.src = randomDecoration;
+      decoration.className = 'absolute animate-grow cursor-pointer';
+      decoration.style.width = '60px';
+      decoration.style.height = '60px';
+      decoration.style.left = (e.clientX - 30) + 'px';
+      decoration.style.top = (e.clientY - 30) + 'px';
+      decoration.style.zIndex = '10';
+      document.getElementById('garden-page').appendChild(decoration);
+      gameState.coins += 5;
+      updateAllUI();
+      addGardenExp(10);
+      updateDailyTask('garden-decorate-1', 1);
+      const coinPopup = document.createElement('div');
+      coinPopup.className = 'absolute text-yellow-500 font-bold text-xl animate-float';
+      coinPopup.style.left = e.clientX + 'px';
+      coinPopup.style.top = (e.clientY - 30) + 'px';
+      coinPopup.textContent = '+5 💰';
+      coinPopup.style.zIndex = '20';
+      document.getElementById('garden-page').appendChild(coinPopup);
+      setTimeout(() => coinPopup.remove(), 2000);
+    });
+
+    let currentRoomIndex = 0;
+    let selectedFurnitureIndex = -1;
+
+    function initRoomPage() {
+      currentRoomIndex = 0;
+      
+      const brokenFurniture = roomFurniture.filter(f => f.isBroken);
+      brokenFurniture.forEach(f => {
+        if (!gameState.inventoryRoom.includes(f.id)) {
+          gameState.inventoryRoom.push(f.id);
+        }
+      });
+      
+      updateRoomStyle();
+      updateRoomDisplay();
+      renderPlacedFurniture();
+    }
+
+    function updateRoomStyle() {
+      const level = gameState.gardenLevel;
+      const roomBg = document.getElementById('room-bg');
+      const roomImage = document.getElementById('room-image');
+
+      roomBg.className = 'relative w-full h-full room-bg level-' + level;
+      
+      const imagePath = '房间/房间' + level + '.png';
+      if (roomImage) roomImage.src = imagePath;
+    }
+
+    function updateRoomDisplay() {
+      const maxRooms = gameState.gardenLevel;
+      const title = document.getElementById('room-title');
+      const roomImage = document.getElementById('room-image');
+      const indicators = document.getElementById('room-indicators');
+      const prevBtn = document.getElementById('room-prev-btn');
+      const nextBtn = document.getElementById('room-next-btn');
+
+      title.textContent = '我的房间' + (currentRoomIndex + 1);
+      
+      const imagePath = '房间/房间' + (currentRoomIndex + 1) + '.png';
+      if (roomImage) roomImage.src = imagePath;
+
+      indicators.innerHTML = '';
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'w-3 h-3 rounded-full transition-all';
+        if (i < maxRooms) {
+          dot.className += i === currentRoomIndex ? ' bg-yellow-400' : ' bg-gray-300';
+        } else {
+          dot.className += ' bg-gray-200 opacity-50';
+        }
+        indicators.appendChild(dot);
+      }
+
+      prevBtn.style.display = 'block';
+      nextBtn.style.display = 'block';
+      if (currentRoomIndex > 0) {
+        prevBtn.classList.remove('text-gray-300', 'cursor-not-allowed');
+        prevBtn.classList.add('text-gray-600', 'hover:text-yellow-500', 'cursor-pointer');
+      } else {
+        prevBtn.classList.add('text-gray-300', 'cursor-not-allowed');
+        prevBtn.classList.remove('text-gray-600', 'hover:text-yellow-500', 'cursor-pointer');
+      }
+      if (currentRoomIndex < maxRooms - 1) {
+        nextBtn.classList.remove('text-gray-300', 'cursor-not-allowed');
+        nextBtn.classList.add('text-gray-600', 'hover:text-yellow-500', 'cursor-pointer');
+      } else {
+        nextBtn.classList.add('text-gray-300', 'cursor-not-allowed');
+        nextBtn.classList.remove('text-gray-600', 'hover:text-yellow-500', 'cursor-pointer');
+      }
+      
+      renderPlacedFurniture();
+    }
+
+    document.getElementById('room-prev-btn').addEventListener('click', () => {
+      if (currentRoomIndex > 0) {
+        currentRoomIndex--;
+        updateRoomDisplay();
+      } else {
+        alert('🏠 已经是第一个房间啦！');
+      }
+    });
+
+    document.getElementById('room-next-btn').addEventListener('click', () => {
+      const maxRooms = gameState.gardenLevel;
+      if (currentRoomIndex < maxRooms - 1) {
+        currentRoomIndex++;
+        updateRoomDisplay();
+      } else {
+        alert('🔒 更多房间需要升级家园解锁！\n当前等级：Lv.' + gameState.gardenLevel + '\n升级家园可解锁更多房间~');
+      }
+    });
+
+    document.getElementById('room-image').addEventListener('click', () => {
+      addRoomExp(10);
+    });
+
+    document.getElementById('room-decoration-btn').addEventListener('click', () => {
+      const panel = document.getElementById('room-decoration-panel');
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) {
+        renderOwnedFurniture();
+        renderFurnitureShop();
+      }
+    });
+
+    document.getElementById('close-decoration-panel').addEventListener('click', () => {
+      const panel = document.getElementById('room-decoration-panel');
+      panel.classList.add('hidden');
+    });
+
+    function renderPlacedFurniture() {
+      const container = document.getElementById('room-placed-furniture');
+      if (!container) return;
+      
+      const roomIndex = currentRoomIndex + 1;
+      const currentRoomFurniture = gameState.roomFurniture[roomIndex] || [];
+      
+      const size = 64;
+      
+      container.innerHTML = currentRoomFurniture.map((f, index) => {
+        const item = roomFurniture.find(i => i.id === f.id);
+        if (!item) return '';
+        const currentSize = size * (f.size || 1);
+        const isSelected = index === selectedFurnitureIndex;
+        return `
+          <div class="absolute" style="left: ${f.x}px; top: ${f.y}px; width: ${currentSize}px; height: ${currentSize}px;">
+            <img src="${item.image}" 
+                 class="w-full h-full object-contain ${isSelected ? 'cursor-move ring-2 ring-blue-400' : 'cursor-pointer hover:opacity-80 transition-opacity'}"
+                 style="transform: rotate(${f.rotation || 0}deg) scaleX(${f.flipX ? -1 : 1});"
+                 draggable="false"
+                 onmousedown="${isSelected ? `startDrag(event, '${f.id}', ${index})` : `selectFurniture(${index}, event)`}">
+            ${isSelected ? `
+              <div class="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full cursor-se-resize border-2 border-white z-50"
+                   onmousedown="startResize(event, ${index})"></div>
+              <div class="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full cursor-pointer border-2 border-white flex items-center justify-center text-xs z-50"
+                   onmousedown="event.preventDefault(); event.stopPropagation(); rotateFurniture(${index});">↻</div>
+              <div class="absolute -top-2 -left-2 w-4 h-4 bg-red-500 rounded-full cursor-pointer border-2 border-white flex items-center justify-center text-xs z-50 text-white"
+                   onmousedown="event.preventDefault(); event.stopPropagation(); removeFurniture(${index});">×</div>
+              <div class="absolute -bottom-2 -left-2 w-4 h-4 bg-purple-500 rounded-full cursor-pointer border-2 border-white flex items-center justify-center text-xs z-50 text-white"
+                   onmousedown="event.preventDefault(); event.stopPropagation(); flipFurniture(${index});">↔</div>
+              <div class="absolute inset-0 border-2 border-blue-400 rounded-lg pointer-events-none"></div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderOwnedFurniture() {
+      const container = document.getElementById('owned-furniture-items');
+      if (!container) return;
+      
+      const ownedFurniture = gameState.inventoryRoom.map(id => roomFurniture.find(f => f.id === id)).filter(Boolean);
+      
+      if (ownedFurniture.length > 0) {
+        container.innerHTML = ownedFurniture.map(item => `
+          <div class="bg-gray-100 rounded-lg p-2 text-center cursor-grab hover:bg-gray-200 transition-colors"
+               draggable="false"
+               onmousedown="startDrag(event, '${item.id}')">
+            <img src="${item.image}" class="w-12 h-12 object-contain mx-auto mb-1" />
+            <div class="text-xs text-gray-600">${item.name}</div>
+          </div>
+        `).join('');
+      } else {
+        container.innerHTML = '<div class="text-gray-500 text-sm text-center py-4">暂无家具</div>';
+      }
+    }
+
+    function renderFurnitureShop() {
+      const container = document.getElementById('furniture-shop-items');
+      if (!container) return;
+      
+      const shopItems = roomFurniture.filter(f => !f.isBroken);
+      
+      container.innerHTML = shopItems.map(item => {
+        const isOwned = gameState.inventoryRoom.includes(item.id);
+        let buttonText = '';
+        let buttonClass = '';
+        
+        if (isOwned) {
+          buttonText = '已拥有';
+          buttonClass = 'bg-gray-200 text-gray-500 cursor-not-allowed';
+        } else {
+          buttonText = `💰 ${item.price}`;
+          buttonClass = gameState.coins >= item.price 
+            ? 'bg-gradient-to-r from-sunflower-yellow to-orange-400 hover:scale-105 text-wood-brown' 
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed';
+        }
+        
+        return `
+          <div class="bg-white rounded-lg p-2 text-center shadow-md">
+            <img src="${item.image}" class="w-12 h-12 object-contain mx-auto mb-1" />
+            <div class="text-xs font-medium text-gray-700">${item.name}</div>
+            <div class="text-xs text-gray-400">${item.description}</div>
+            <button class="mt-1 w-full py-1 rounded-lg text-xs font-bold transition-all ${buttonClass}"
+                    onclick="buyFurniture('${item.id}')">
+              ${buttonText}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function buyFurniture(itemId) {
+      const item = roomFurniture.find(f => f.id === itemId);
+      if (!item) return;
+      
+      if (gameState.inventoryRoom.includes(itemId)) {
+        alert('您已经拥有该家具！');
+        return;
+      }
+      
+      if (gameState.coins < item.price) {
+        alert('💰 金币不足！');
+        return;
+      }
+      
+      gameState.coins -= item.price;
+      gameState.inventoryRoom.push(itemId);
+      updateAllUI();
+      renderOwnedFurniture();
+      renderFurnitureShop();
+      alert(`🛒 购买成功！${item.name}已加入背包~`);
+    }
+
+    let dragData = null;
+    let dragAnimationFrame = null;
+    let dragGhost = null;
+    
+    function startDrag(event, furnitureId, placedIndex = -1) {
+      event.preventDefault();
+      
+      const roomIndex = currentRoomIndex + 1;
+      const item = roomFurniture.find(f => f.id === furnitureId);
+      if (!item) return;
+      
+      let offsetX, offsetY, origX, origY, currentSize;
+      
+      if (placedIndex >= 0) {
+        const furniture = gameState.roomFurniture[roomIndex][placedIndex];
+        currentSize = furniture.size || 1;
+        const pixelSize = 64 * currentSize;
+        offsetX = event.offsetX !== undefined ? event.offsetX : pixelSize / 2;
+        offsetY = event.offsetY !== undefined ? event.offsetY : pixelSize / 2;
+        origX = furniture.x;
+        origY = furniture.y;
+      } else {
+        currentSize = 1;
+        const target = event.target;
+        const targetRect = target.getBoundingClientRect();
+        offsetX = event.clientX - targetRect.left;
+        offsetY = event.clientY - targetRect.top;
+        origX = 0;
+        origY = 0;
+      }
+      
+      dragData = {
+        furnitureId: furnitureId,
+        placedIndex: placedIndex,
+        startX: event.clientX,
+        startY: event.clientY,
+        offsetX: offsetX,
+        offsetY: offsetY,
+        origX: origX,
+        origY: origY,
+        currentX: origX,
+        currentY: origY,
+        size: currentSize
+      };
+      
+      if (placedIndex < 0) {
+        dragGhost = document.createElement('img');
+        dragGhost.src = item.image;
+        dragGhost.className = 'fixed pointer-events-none z-50 opacity-80';
+        dragGhost.style.width = (64 * currentSize) + 'px';
+        dragGhost.style.height = (64 * currentSize) + 'px';
+        dragGhost.style.left = (event.clientX - offsetX) + 'px';
+        dragGhost.style.top = (event.clientY - offsetY) + 'px';
+        document.body.appendChild(dragGhost);
+      }
+      
+      document.addEventListener('mousemove', onDragMove);
+      document.addEventListener('mouseup', onDragEnd);
+    }
+    
+    function onDragMove(event) {
+      if (!dragData) return;
+      
+      const dropZone = document.getElementById('room-drop-zone');
+      if (!dropZone) return;
+      
+      const rect = dropZone.getBoundingClientRect();
+      if (event.clientX >= rect.left && event.clientX <= rect.right &&
+          event.clientY >= rect.top && event.clientY <= rect.bottom) {
+        dropZone.style.border = '2px dashed orange';
+      } else {
+        dropZone.style.border = 'none';
+      }
+      
+      if (dragGhost) {
+        dragGhost.style.left = (event.clientX - dragData.offsetX) + 'px';
+        dragGhost.style.top = (event.clientY - dragData.offsetY) + 'px';
+      }
+      
+      if (dragData.placedIndex >= 0) {
+        const deltaX = event.clientX - dragData.startX;
+        const deltaY = event.clientY - dragData.startY;
+        
+        const pixelSize = 64 * dragData.size;
+        const maxX = rect.width - pixelSize;
+        const maxY = rect.height - pixelSize;
+        dragData.currentX = Math.max(0, Math.min(dragData.origX + deltaX, maxX));
+        dragData.currentY = Math.max(0, Math.min(dragData.origY + deltaY, maxY));
+        
+        if (!dragAnimationFrame) {
+          dragAnimationFrame = requestAnimationFrame(updateDragVisual);
+        }
+      }
+    }
+    
+    function updateDragVisual() {
+      if (!dragData || dragData.placedIndex < 0) {
+        dragAnimationFrame = null;
+        return;
+      }
+      
+      const container = document.getElementById('room-placed-furniture');
+      if (!container) {
+        dragAnimationFrame = null;
+        return;
+      }
+      
+      const furnitureEl = container.children[dragData.placedIndex];
+      if (furnitureEl) {
+        furnitureEl.style.left = dragData.currentX + 'px';
+        furnitureEl.style.top = dragData.currentY + 'px';
+      }
+      
+      dragAnimationFrame = null;
+    }
+    
+    function onDragEnd(event) {
+      if (!dragData) {
+        document.removeEventListener('mousemove', onDragMove);
+        document.removeEventListener('mouseup', onDragEnd);
+        return;
+      }
+      
+      if (dragGhost) {
+        dragGhost.remove();
+        dragGhost = null;
+      }
+      
+      const dropZone = document.getElementById('room-drop-zone');
+      dropZone.style.border = 'none';
+      
+      const rect = dropZone.getBoundingClientRect();
+      
+      if (event.clientX >= rect.left && event.clientX <= rect.right &&
+          event.clientY >= rect.top && event.clientY <= rect.bottom) {
+        const furnitureId = dragData.furnitureId;
+        const placedIndex = dragData.placedIndex;
+        const item = roomFurniture.find(f => f.id === furnitureId);
+        
+        if (item) {
+          const roomIndex = currentRoomIndex + 1;
+          const pixelSize = 64 * dragData.size;
+          const x = event.clientX - rect.left - dragData.offsetX;
+          const y = event.clientY - rect.top - dragData.offsetY;
+          
+          const maxX = rect.width - pixelSize;
+          const maxY = rect.height - pixelSize;
+          const clampedX = Math.max(0, Math.min(x, maxX));
+          const clampedY = Math.max(0, Math.min(y, maxY));
+          
+          if (placedIndex >= 0) {
+            const existing = gameState.roomFurniture[roomIndex][placedIndex];
+            gameState.roomFurniture[roomIndex][placedIndex] = {
+              id: furnitureId,
+              x: clampedX,
+              y: clampedY,
+              size: existing.size || 1,
+              rotation: existing.rotation || 0,
+              flipX: existing.flipX || false
+            };
+          } else {
+            if (!gameState.inventoryRoom.includes(furnitureId)) {
+              alert('请先购买该家具！');
+              dragData = null;
+              document.removeEventListener('mousemove', onDragMove);
+              document.removeEventListener('mouseup', onDragEnd);
+              return;
+            }
+            
+            const existingIndex = gameState.roomFurniture[roomIndex].findIndex(f => f.id === furnitureId);
+            if (existingIndex >= 0) {
+              const existing = gameState.roomFurniture[roomIndex][existingIndex];
+              gameState.roomFurniture[roomIndex][existingIndex] = {
+                id: furnitureId,
+                x: clampedX,
+                y: clampedY,
+                size: existing.size || 1,
+                rotation: existing.rotation || 0,
+                flipX: existing.flipX || false
+              };
+            } else {
+              gameState.roomFurniture[roomIndex].push({
+                id: furnitureId,
+                x: clampedX,
+                y: clampedY,
+                size: 1,
+                rotation: 0,
+                flipX: false
+              });
+            }
+          }
+          
+          renderPlacedFurniture();
+          renderOwnedFurniture();
+        }
+      }
+      
+      dragData = null;
+      document.removeEventListener('mousemove', onDragMove);
+      document.removeEventListener('mouseup', onDragEnd);
+    }
+
+    let resizeData = null;
+    let resizeAnimationFrame = null;
+    
+    function startResize(event, placedIndex) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const roomIndex = currentRoomIndex + 1;
+      const furniture = gameState.roomFurniture[roomIndex][placedIndex];
+      
+      resizeData = {
+        placedIndex: placedIndex,
+        startX: event.clientX,
+        startY: event.clientY,
+        currentSize: furniture.size || 1,
+        newSize: furniture.size || 1
+      };
+      
+      document.addEventListener('mousemove', onResizeMove);
+      document.addEventListener('mouseup', onResizeEnd);
+    }
+    
+    function onResizeMove(event) {
+      if (!resizeData) return;
+      
+      const deltaX = event.clientX - resizeData.startX;
+      const deltaY = event.clientY - resizeData.startY;
+      const delta = Math.max(deltaX, deltaY);
+      
+      const sizeChange = delta * 0.02;
+      resizeData.newSize = Math.max(0.2, Math.min(resizeData.currentSize + sizeChange, 4));
+      
+      if (!resizeAnimationFrame) {
+        resizeAnimationFrame = requestAnimationFrame(updateResizeVisual);
+      }
+    }
+    
+    function updateResizeVisual() {
+      if (!resizeData) {
+        resizeAnimationFrame = null;
+        return;
+      }
+      
+      const container = document.getElementById('room-placed-furniture');
+      if (!container) {
+        resizeAnimationFrame = null;
+        return;
+      }
+      
+      const furnitureEl = container.children[resizeData.placedIndex];
+      if (furnitureEl) {
+        const baseSize = 64;
+        const currentSize = baseSize * resizeData.newSize;
+        furnitureEl.style.width = currentSize + 'px';
+        furnitureEl.style.height = currentSize + 'px';
+      }
+      
+      resizeAnimationFrame = null;
+    }
+    
+    function onResizeEnd(event) {
+      if (resizeData) {
+        const roomIndex = currentRoomIndex + 1;
+        gameState.roomFurniture[roomIndex][resizeData.placedIndex].size = resizeData.newSize;
+        renderPlacedFurniture();
+      }
+      
+      resizeData = null;
+      document.removeEventListener('mousemove', onResizeMove);
+      document.removeEventListener('mouseup', onResizeEnd);
+    }
+    
+    function rotateFurniture(placedIndex) {
+      const roomIndex = currentRoomIndex + 1;
+      const furniture = gameState.roomFurniture[roomIndex][placedIndex];
+      furniture.rotation = (furniture.rotation || 0) + 45;
+      renderPlacedFurniture();
+    }
+    
+    function flipFurniture(placedIndex) {
+      const roomIndex = currentRoomIndex + 1;
+      const furniture = gameState.roomFurniture[roomIndex][placedIndex];
+      furniture.flipX = !furniture.flipX;
+      renderPlacedFurniture();
+    }
+    
+    function selectFurniture(index, event) {
+      event.preventDefault();
+      selectedFurnitureIndex = index;
+      renderPlacedFurniture();
+    }
+    
+    function removeFurniture(placedIndex) {
+      const roomIndex = currentRoomIndex + 1;
+      gameState.roomFurniture[roomIndex].splice(placedIndex, 1);
+      selectedFurnitureIndex = -1;
+      renderPlacedFurniture();
+    }
+    
+    function deselectFurniture() {
+      selectedFurnitureIndex = -1;
+      renderPlacedFurniture();
+    }
+
+    function addRoomExp(exp) {
+      if (gameState.gardenLevel >= 5) return;
+      
+      gameState.gardenExp += exp;
+      const expNeeded = gameState.gardenLevel * 100;
+      
+      if (gameState.gardenExp >= expNeeded) {
+        gameState.gardenExp -= expNeeded;
+        gameState.gardenLevel++;
+        updateHouseImage();
+        updateRoomStyle();
+        updateRoomDisplay();
+        alert(`🎉 家园升级！当前等级：Lv.${gameState.gardenLevel}`);
+      }
+      
+      updateGardenExpBar();
+    }
+
+    document.getElementById('back-from-room').addEventListener('click', () => {
+      goBack();
+    });
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    
+    let musicOscillators = [];
+    let musicInterval = null;
+    let currentChordIndex = 0;
+    
+    const chords = [
+      [261.63, 329.63, 392.00],
+      [293.66, 369.99, 440.00],
+      [329.63, 415.30, 493.88],
+      [261.63, 329.63, 392.00],
+      [246.94, 311.13, 369.99],
+      [261.63, 329.63, 392.00],
+      [293.66, 369.99, 440.00],
+      [329.63, 415.30, 493.88],
+    ];
+    
+    function playBackgroundMusic() {
+      if (!gameState.musicEnabled || audioCtx.state !== 'running') return;
+      
+      stopBackgroundMusic();
+      
+      const playChord = () => {
+        if (!gameState.musicEnabled) return;
+        
+        const chord = chords[currentChordIndex];
+        currentChordIndex = (currentChordIndex + 1) % chords.length;
+        
+        chord.forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          osc.type = i === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          gainNode.gain.linearRampToValueAtTime(0.03, audioCtx.currentTime + 0.2);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 3);
+          
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          osc.start();
+          osc.stop(audioCtx.currentTime + 3);
+          
+          musicOscillators.push(osc);
+        });
+      };
+      
+      playChord();
+      musicInterval = setInterval(playChord, 3000);
+    }
+    
+    function stopBackgroundMusic() {
+      if (musicInterval) {
+        clearInterval(musicInterval);
+        musicInterval = null;
+      }
+      musicOscillators.forEach(osc => {
+        try { osc.stop(); } catch(e) {}
+      });
+      musicOscillators = [];
+    }
+    
+    function playClickSound() {
+      if (!gameState.soundEnabled || audioCtx.state !== 'running') return;
+      
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+    
+    function playSuccessSound() {
+      if (!gameState.soundEnabled || audioCtx.state !== 'running') return;
+      
+      const notes = [523.25, 659.25, 783.99];
+      notes.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.1);
+        
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime + i * 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + i * 0.1 + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.1 + 0.3);
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        osc.start(audioCtx.currentTime + i * 0.1);
+        osc.stop(audioCtx.currentTime + i * 0.1 + 0.3);
+      });
+    }
+    
+    function playFailSound() {
+      if (!gameState.soundEnabled || audioCtx.state !== 'running') return;
+      
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+      
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    }
+    
+    function toggleMusic() {
+      gameState.musicEnabled = !gameState.musicEnabled;
+      const toggleBtn = document.getElementById('music-toggle');
+      const toggleKnob = toggleBtn.querySelector('div');
+      
+      if (gameState.musicEnabled) {
+        toggleBtn.classList.remove('bg-gray-400');
+        toggleBtn.classList.add('bg-green-500');
+        toggleKnob.style.transform = 'translateX(0)';
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        playBackgroundMusic();
+      } else {
+        toggleBtn.classList.remove('bg-green-500');
+        toggleBtn.classList.add('bg-gray-400');
+        toggleKnob.style.transform = 'translateX(-28px)';
+        stopBackgroundMusic();
+      }
+    }
+    
+    function toggleSound() {
+      gameState.soundEnabled = !gameState.soundEnabled;
+      const toggleBtn = document.getElementById('sound-toggle');
+      const toggleKnob = toggleBtn.querySelector('div');
+      
+      if (gameState.soundEnabled) {
+        toggleBtn.classList.remove('bg-gray-400');
+        toggleBtn.classList.add('bg-green-500');
+        toggleKnob.style.transform = 'translateX(0)';
+      } else {
+        toggleBtn.classList.remove('bg-green-500');
+        toggleBtn.classList.add('bg-gray-400');
+        toggleKnob.style.transform = 'translateX(-28px)';
+      }
+    }
+    
+    function initAudio() {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      if (gameState.musicEnabled) {
+        playBackgroundMusic();
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🌱 萌芽单词乐园已加载！');
+      const genderIcon = document.getElementById('gender-icon');
+      if (genderIcon) genderIcon.textContent = gameState.selectedGender === 'boy' ? '👦' : '👧';
+      
+      document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', playClickSound);
+      });
+    });
+  </script>
+</body>
+</html>
